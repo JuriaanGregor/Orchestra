@@ -1,0 +1,16 @@
+{
+  "name": "Audio SDK",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "Packages": {
+        "$className": "Folder",
+        "$path": "Packages"
+      },
+      "Orchestra": {
+        "$path": "src/Orchestra"
+      }
+    }
+  }
+}
