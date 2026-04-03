@@ -1,16 +1,12 @@
 [package]
-name = "juriaan/audio-sdk"
-version = "0.1.0"
+name = "juriaan/orchestra"
+version = "0.0.1"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 
-# Set our Place 
-[place]
-shared-packages = "game.ReplicatedStorage.Packages"
-server-packages = "game.ServerStorage.Packages"
-
 [dependencies]
-Signal = "sleitnick/signal@2.0.1"
-Trove = "sleitnick/trove@1.1.0"
-Symbol = "sleitnick/symbol@2.0.1"
 Component = "sleitnick/component@2.4.8"
+Trove = "sleitnick/trove@1.5.1"
+TableUtil = "sleitnick/table-util@1.2.1"
+Signal = "sleitnick/signal@2.0.3"
+Promise = "evaera/promise@4.0.0"
