@@ -10,7 +10,7 @@ local t = require(Package.Packages.t)
 local Trove = require(Package.Packages.Trove)
 local Signal = require(Package.Packages.Signal)
 
--- Import > Package 
+-- Import > Package
 local Routing = require(Package.Components.Routing)
 local Types = require(Package.Types)
 
