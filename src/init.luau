@@ -15,35 +15,48 @@ local DEFAULT_MIX_BUSES = {
 	"Ambient",
 }
 
-local AudioEngine = {}
-AudioEngine.__index = AudioEngine
+---------------------------------------------------------------------
 
-function AudioEngine.new()
+--[=[
+	@class Orchestra
+	@tag Engine
+
+	Represents the main Orchestra engine, which is responsible for managing all audio components / our top level API.
+]=]
+local Orchestra = {}
+Orchestra.__index = Orchestra
+Orchestra.VERSION = "0.0.1"
+
+function Orchestra.new()
 	local self = {}
-	self.ClassName = "AudioEngine"
+	self.ClassName = "Orchestra"
 
 	local comps = require(script.Components)
 	for compIndex, compValue in comps do
 		self[compIndex] = compValue
 	end
 
-	return setmetatable(self :: any, AudioEngine)
+	return setmetatable(self :: any, Orchestra)
 end
 
-function AudioEngine:__tostring()
-	return "AudioEngine"
+function Orchestra:__tostring()
+	return string.format("Orchestra Engine | Version: %s", self.VERSION)
 end
 
-function AudioEngine:Start()
+--[=[
+	Starts the Orchestra engine. This will set up the main output and master mix bus, as well as create a default listener and emitter.
+]=]
+
+function Orchestra:Start()
 	if not self.Started then
 		self.Started = true
 	else
-		warn("AudioEngine:Start - Audio Engine already started")
+		warn("Orchestra:Start - Audio Engine already started")
 		return
 	end
 
 	if SoundService:FindFirstChild("Mixes") then
-		warn("AudioEngine:Start - SoundService already has Mixes folder")
+		warn("Orchestra:Start - SoundService already has Mixes folder")
 		return
 	end
 
@@ -106,12 +119,16 @@ function AudioEngine:Start()
 end
 
 local tAddMix = t.union(t.string)
-function AudioEngine:AddMix(busName: string)
+
+--[=[
+	Adds a new mix bus to the engine with the given name. Mix buses are used to route audio from listeners to the master output.
+]=]
+function Orchestra:AddMix(busName: string)
 	assert(tAddMix(busName))
 
 	-- Check if mix bus already exists
 	if SoundService.Mixes:FindFirstChild(busName) then
-		warn("AudioEngine:AddMix - Mix bus already exists: " .. busName)
+		warn("Orchestra:AddMix - Mix bus already exists: " .. busName)
 		return
 	end
 
@@ -131,7 +148,7 @@ function AudioEngine:AddMix(busName: string)
 end
 
 local tAddListener = t.union(t.string)
-function AudioEngine:AddListener(listenerName: string)
+function Orchestra:AddListener(listenerName: string)
 	assert(tAddListener(listenerName))
 
 	-- Create a new Audio Listener
@@ -146,12 +163,9 @@ function AudioEngine:AddListener(listenerName: string)
 	return listener
 end
 
-print("Oh hello!")
+local OrchestraEngine = Orchestra.new()
 
--- Create a new AudioEngine
-local Audio = AudioEngine.new()
+-- Start the engine
+OrchestraEngine:Start()
 
--- Start the AudioEngine
-Audio:Start()
-
-return Audio
+return OrchestraEngine
