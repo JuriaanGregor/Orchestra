@@ -37,8 +37,7 @@ AudioDeviceInput.__index = AudioDeviceInput
 
 --[=[
 	@class AudioDeviceInput
-	@tag Audio
-	@client 
+	@tag Stream
 
 	Represents an audio device input. This is used to capture audio from a specific player device
 ]=]

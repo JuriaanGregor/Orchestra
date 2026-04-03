@@ -39,8 +39,7 @@ AudioTextToSpeech.__index = AudioTextToSpeech
 
 --[=[
 	@class AudioTextToSpeech
-	@tag Audio 
-	@client 
+	@tag Stream
 
 	Represents an AudioTextToSpeech. This is used to convert text to speech.
 ]=]

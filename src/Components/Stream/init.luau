@@ -70,8 +70,7 @@ AudioStream.__index = AudioStream
 
 --[=[
 	@class AudioStream 
-	@tag Audio
-	@client 
+	@tag Stream
 
 	Represents an audio stream. This can be a playback stream, input stream or listener stream.
 ]=]

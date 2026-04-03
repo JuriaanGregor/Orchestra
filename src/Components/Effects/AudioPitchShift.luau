@@ -32,8 +32,7 @@ AudioPitchShift.__index = AudioPitchShift
 
 --[=[
 	@class AudioPitchShift
-	@tag Audio 
-	@client 
+	@tag Effects
 
 	Represents an audio pitch shift. This is used to adjust the audio pitch shift properties.
 ]=]

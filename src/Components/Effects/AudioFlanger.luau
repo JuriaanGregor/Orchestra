@@ -32,8 +32,7 @@ AudioFlanger.__index = AudioFlanger
 
 --[=[
 	@class AudioFlanger
-	@tag Audio 
-	@client 
+	@tag Effects
 
 	Represents an audio flanger. This is used to adjust the audio flanger properties.
 ]=]

@@ -19,8 +19,7 @@ AudioLayer.__index = AudioLayer
 
 --[=[
 	@class AudioLayer 
-	@tag Audio 
-	@client 
+	@tag Base
 
 	Represents an AudioLayer object.
 	A layer is a combination of an AudioStream and an AudioFader connected together.

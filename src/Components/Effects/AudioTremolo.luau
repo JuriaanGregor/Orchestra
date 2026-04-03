@@ -32,8 +32,7 @@ AudioTremolo.__index = AudioTremolo
 
 --[=[
 	@class AudioTremolo
-	@tag Audio 
-	@client 
+	@tag Effects
 
 	Represents an audio tremolo. This is used to adjust the audio tremolo properties.
 ]=]

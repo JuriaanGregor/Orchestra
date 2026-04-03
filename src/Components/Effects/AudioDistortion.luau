@@ -32,8 +32,7 @@ AudioDistortion.__index = AudioDistortion
 
 --[=[
 	@class AudioDistortion
-	@tag Audio 
-	@client 
+	@tag Effects
 
 	Represents an audio distortion. This is used to adjust the audio distortion properties.
 ]=]

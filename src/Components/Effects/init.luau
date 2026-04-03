@@ -46,8 +46,7 @@ AudioEffect.__index = AudioEffect
 
 --[=[
 	@class AudioEffect
-	@tag Audio
-	@client 
+	@tag Effects
 
 	Represents an audio effect. This can be an equalizer or other audio effect.
 ]=]

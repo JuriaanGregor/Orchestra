@@ -32,8 +32,7 @@ AudioReverb.__index = AudioReverb
 
 --[=[
 	@class AudioReverb
-	@tag Audio 
-	@client 
+	@tag Effects
 
 	Represents an audio reverb. This is used to adjust the audio reverb properties.
 ]=]

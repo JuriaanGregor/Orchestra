@@ -51,8 +51,7 @@ AudioWire.__index = AudioWire
 
 --[=[
 	@class AudioWire
-	@tag Audio
-	@client 
+	@tag Base
 
 	Represents an AudioWire that connects two Audio Instances together.
 ]=]

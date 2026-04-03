@@ -32,8 +32,7 @@ AudioChorus.__index = AudioChorus
 
 --[=[
 	@class AudioChorus
-	@tag Audio 
-	@client 
+	@tag Effects
 
 	Represents an audio chorus. This is used to adjust the audio chorus properties.
 ]=]

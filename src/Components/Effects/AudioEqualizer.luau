@@ -32,8 +32,7 @@ AudioEqualizer.__index = AudioEqualizer
 
 --[=[
 	@class AudioEqualizer
-	@tag Audio 
-	@client 
+	@tag Effects
 
 	Represents an audio equalizer. This is used to adjust the audio frequencies.
 ]=]

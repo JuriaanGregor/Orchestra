@@ -31,8 +31,7 @@ AudioCompressor.__index = AudioCompressor
 
 --[=[
 	@class AudioCompressor
-	@tag Audio 
-	@client 
+	@tag Effects
 
 	Represents an audio compressor. This is used to adjust the audio compressor properties.
 ]=]

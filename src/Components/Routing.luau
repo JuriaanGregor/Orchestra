@@ -21,8 +21,7 @@ AudioRouting.__index = AudioRouting
 
 --[=[
 	@class AudioRouting 
-	@tag Audio 
-	@client 
+	@tag Base
 
 	Represents an AudioRouting, which is used to route audio from one instance to another.
 ]=]

@@ -42,8 +42,7 @@ AudioChannelMixer.__index = AudioChannelMixer
 
 --[=[
 	@class AudioChannelMixer
-	@tag Audio 
-	@client 
+	@tag Transforms
 
 	Represents an AudioChannelMixer. This is used to mix audio channels, allowing for individual channel processing.
 ]=]

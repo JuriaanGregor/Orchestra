@@ -42,8 +42,7 @@ AudioChannelSplitter.__index = AudioChannelSplitter
 
 --[=[
 	@class AudioChannelSplitter
-	@tag Audio 
-	@client 
+	@tag Transforms
 
 	Represents an AudioChannelSplitter. This is used to split audio channels, allowing for individual channel processing.
 ]=]

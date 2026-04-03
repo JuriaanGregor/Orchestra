@@ -48,8 +48,7 @@ AudioMixBus.__index = AudioMixBus
 
 --[=[
 	@class AudioMixBus
-	@tag Audio
-	@client 
+	@tag Base
 
 	Represents an AudioMixBus, which is a fader that can be used to control the volume of an audio source.
 ]=]

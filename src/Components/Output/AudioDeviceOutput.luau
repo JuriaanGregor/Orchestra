@@ -42,8 +42,7 @@ AudioDeviceOutput.__index = AudioDeviceOutput
 
 --[=[
 	@class AudioDeviceOutput
-	@tag Audio 
-	@client 
+	@tag Output
 
 	Represents an audio device output. This is used to output audio to a specific output device.
 ]=]

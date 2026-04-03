@@ -1,15 +1,30 @@
-title = "Project Nightink"
+title = "Orchestra"
 
 [footer]
 style = "dark"
 copyright = "Copyright © 2026 Juriaan Gregor. Built with ❤️ "
 
 [[classOrder]]
-section = "Libraries"
-collapsed = true 
-tag = "Library"
+section = "Base Members"
+collapsed = false
+tag = "Base"
 
 [[classOrder]]
-section = "Audio"
+section = "Effects"
 collapsed = true
-tag = "Audio"
+tag = "Effects"
+
+[[classOrder]]
+section = "Output"
+collapsed = true
+tag = "Output"
+
+[[classOrder]]
+section = "Stream"
+collapsed = true
+tag = "Stream"
+
+[[classOrder]]
+section = "Transforms"
+collapsed = true
+tag = "Transforms"

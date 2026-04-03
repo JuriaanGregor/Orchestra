@@ -49,8 +49,7 @@ AudioEmitter.__index = AudioEmitter
 
 --[=[
 	@class AudioEmitter
-	@tag Audio
-	@client 
+	@tag Output
 
 	Represents an Audio Emitter. This is used to play 3D sounds in the world attached to a transform
 ]=]

@@ -71,8 +71,7 @@ AudioPlayer.__index = AudioPlayer
 
 --[=[
 	@class AudioPlayer 
-	@tag Audio
-	@client 
+	@tag Stream
 	
 	Represents an audio player that can be used to play audio in the game.
 ]=]

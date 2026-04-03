@@ -65,20 +65,8 @@ Effects process the audio signal in-place. All effects support `Enable` and `Dis
 
 ## Installation
 
-Orchestra is published as a [Wally](https://wally.run) package.
-
-Add it to your `wally.toml`:
-
-```toml
-[dependencies]
-Orchestra = "juriaan/orchestra@0.1.0"
-```
-
-Then run:
-
-```
-wally install
-```
+Wally Install:
+COMING SOON
 
 ## Dependencies
 

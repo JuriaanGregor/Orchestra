@@ -47,8 +47,7 @@ AudioTransform.__index = AudioTransform
 
 --[=[
 	@class AudioTransform
-	@tag Audio
-	@client 
+	@tag Transforms
 
 	Represnts an audio transform. This can be a channel mixer or channel splitter.
 ]=]

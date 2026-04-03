@@ -32,8 +32,7 @@ AudioEcho.__index = AudioEcho
 
 --[=[
 	@class AudioEcho
-	@tag Audio 
-	@client 
+	@tag Effects
 
 	Represents an audio echo. This is used to adjust the audio echo properties.
 ]=]
