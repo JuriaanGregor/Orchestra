@@ -1,0 +1,21 @@
+# Wally
+/Packages
+/DevPackages
+/ServerPackages
+wally.lock
+
+# Moonwave
+/build
+
+# Roblox Studio Lock files, if any 
+/*.rbxlx.lock
+/*.rbxl.lock
+
+# Add Sourcemap files 
+sourcemap.json
+
+# Add roblox.yml
+roblox.yml
+
+# Add DS Store files
+.DS_Store
