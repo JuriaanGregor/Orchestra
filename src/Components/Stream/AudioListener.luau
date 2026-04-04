@@ -12,46 +12,34 @@ local Trove = require(Package.Packages.Trove)
 local applyInstanceProps = require(Package.Instances.applyInstanceProps)
 
 -- Types
-local Types = require(script.Parent.Parent.Parent.Types)
+local Types = require(Package.Types)
 
 -- Functions
-local tCreateAudioListener = t.tuple(t.Instance, t.optional(t.string), t.optional(t.map(t.string, t.any)))
-local function CreateListener(
-	parent: Instance,
-	audioInteractionGroup: string?,
-	props: { [string]: any }?
-): AudioListener
-	assert(tCreateAudioListener(parent, audioInteractionGroup))
-
+local function CreateListener(parent: Instance, props: { [string]: any }?): AudioListener
 	local listener = Instance.new("AudioListener")
 	listener.Parent = parent
 
-	if audioInteractionGroup then
-		listener.AudioInteractionGroup = audioInteractionGroup
-	end
-
-	if not props then
-		return listener
-	end
-
 	-- Apply properties
-	applyInstanceProps(listener, props)
+	applyInstanceProps(listener, typeof(props) == "table" and props or {})
 
 	-- Return our object
 	return listener
 end
 
 ---------------------------------------------------------------------
+--[=[
+	@class AudioListener
+	@tag Stream
+
+	Represents an audio listener. This is used to listen to audio in the world.
+]=]
+
 local AudioListener = {}
 AudioListener.__index = AudioListener
 
-local tAudioListener = t.tuple(t.Instance, t.optional(t.string), t.optional(t.map(t.string, t.any)))
-function AudioListener.new(
-	parent: Instance,
-	audioInteractionGroup: string?,
-	props: { [string]: any }?
-): Types.AUListener
-	assert(tAudioListener(parent, audioInteractionGroup, props))
+local tAudioListener = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
+function AudioListener.new(parent: Instance, props: { [string]: any }?): Types.AUListener
+	assert(tAudioListener(parent, props))
 
 	local self = {}
 	self.ClassName = "AudioListener"
@@ -60,7 +48,7 @@ function AudioListener.new(
 	self._trove = Trove.new()
 
 	-- Create our AudioListener Instance
-	self.Instance = CreateListener(parent, audioInteractionGroup, props)
+	self.Instance = CreateListener(parent, props)
 
 	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)

@@ -30,7 +30,7 @@ local AUDIO_EFFECTS: { [string]: any } = {
 -- Functions
 local tCreateEffect = t.tuple(t.string, t.Instance, t.optional(t.map(t.string, t.any)))
 
-function CreateEffect(effectType: string, parent: Instance, props: { [string]: any }?)
+local function CreateEffect(effectType: string, parent: Instance, props: { [string]: any }?)
 	assert(tCreateEffect(effectType, parent, props))
 
 	-- Create the effect based on the effectType

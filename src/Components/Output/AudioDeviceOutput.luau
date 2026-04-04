@@ -15,22 +15,17 @@ local applyInstanceProps = require(Package.Instances.applyInstanceProps)
 local Types = require(Package.Types)
 
 -- Functions
-local tAudioDeviceOutput = t.tuple(t.Instance, t.optional(t.instanceIsA("Player")), t.optional(t.map(t.string, t.any)))
-local function CreateDeviceOutput(parent: Instance, listener: Player?, props: { [string]: any }?): AudioDeviceOutput
-	assert(tAudioDeviceOutput(parent, listener))
+local function CreateDeviceOutput(parent: Instance, props: { [string]: any }?): AudioDeviceOutput
 	local deviceOutput = Instance.new("AudioDeviceOutput")
 	deviceOutput.Parent = parent
 
-	if listener then
-		deviceOutput.Player = listener
-	end
-
-	if not props then
-		return deviceOutput
+	if props and props.Player then
+		deviceOutput.Player = props.Player
+		props.Player = nil
 	end
 
 	-- Apply properties
-	applyInstanceProps(deviceOutput, props)
+	applyInstanceProps(deviceOutput, typeof(props) == "table" and props or {})
 
 	-- Return our object
 	return deviceOutput
@@ -47,12 +42,13 @@ AudioDeviceOutput.__index = AudioDeviceOutput
 	Represents an audio device output. This is used to output audio to a specific output device.
 ]=]
 
+local tAudioDeviceOutput = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 --[=[
 	Creates a new AudioDeviceOutput.
 ]=]
 
-function AudioDeviceOutput.new(parent: Instance, listener: Player?, props: { [string]: any }?): Types.AUDeviceOutput
-	assert(tAudioDeviceOutput(parent, listener))
+function AudioDeviceOutput.new(parent: Instance, props: { [string]: any }?): Types.AUDeviceOutput
+	assert(tAudioDeviceOutput(parent, props))
 
 	-- Create a new AudioDeviceOutput
 	local self = {}
@@ -62,12 +58,13 @@ function AudioDeviceOutput.new(parent: Instance, listener: Player?, props: { [st
 	self._trove = Trove.new()
 
 	-- Create our AudioDeviceOutput Instance
-	self.Instance = CreateDeviceOutput(parent, listener, props)
+	self.Instance = CreateDeviceOutput(parent, props)
+
+	-- Expose our members
+	self.In = self.Instance
 
 	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)
-
-	self.In = self.Instance
 
 	return setmetatable(self :: any, AudioDeviceOutput) :: Types.AUDeviceOutput
 end

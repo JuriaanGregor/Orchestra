@@ -117,7 +117,7 @@ local tGetWireById = t.tuple(t.string)
 	Gets an AudioWire by its ID
 ]=]
 
-function AudioWire:GetWireById(id: string): Wire?
+function AudioWire.GetWireById(id: string): Wire?
 	assert(tGetWireById(id))
 	if WIRES[id] then
 		return WIRES[id]

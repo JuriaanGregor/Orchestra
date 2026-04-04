@@ -22,7 +22,7 @@ local AUDIO_STREAMS: { [Types.AudioStreamType]: any } = {
 
 -- Functions
 local tCreateStream = t.tuple(t.string, t.Instance, t.optional(t.map(t.string, t.any)))
-function CreateStream(
+local function CreateStream(
 	streamType: Types.AudioStreamType,
 	parent: Instance,
 	props: { [string]: any }?
@@ -31,36 +31,18 @@ function CreateStream(
 
 	if streamType == "Player" then
 		local AudioPlayer = AUDIO_STREAMS[streamType]
-		local assetId = nil :: string | number | Sound | nil
-
-		if props then
-			assetId = typeof(props.AssetId) ~= "nil" and props.AssetId or nil
-			props.AssetId = nil
-		end
-
-		return AudioPlayer.new(parent, assetId, props) :: Types.AUPlayback
+		return AudioPlayer.new(parent, props) :: Types.AUPlayback
 	elseif streamType == "Input" then
 		local AudioDeviceInput = AUDIO_STREAMS[streamType]
-		local player = nil :: Player | nil
-
-		if props then
-			player = typeof(props.Player) ~= "nil" and props.Player or nil
-			props.Player = nil
-		end
-
-		return AudioDeviceInput.new(parent, player, props) :: Types.AUInput
+		return AudioDeviceInput.new(parent, props) :: Types.AUInput
 	elseif streamType == "Listener" then
 		local AudioListener = AUDIO_STREAMS[streamType]
-
-		local audioInteractionGroup = nil :: string?
-		if props then
-			audioInteractionGroup = typeof(props.AudioInteractionGroup) ~= "nil" and props.AudioInteractionGroup or nil
-			props.AudioInteractionGroup = nil
-		end
-
-		return AudioListener.new(parent, audioInteractionGroup, props) :: Types.AUListener
+		return AudioListener.new(parent, props) :: Types.AUListener
+	elseif streamType == "TextToSpeech" then
+		local AudioTextToSpeech = AUDIO_STREAMS[streamType]
+		return AudioTextToSpeech.new(parent, props) :: Types.AUTextToSpeech
 	else
-		error("Invalid streamType")
+		error(string.format("Invalid streamType: %s", streamType))
 	end
 end
 

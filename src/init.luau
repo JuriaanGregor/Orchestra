@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 -- Import > Packages
 local Package = ReplicatedStorage:WaitForChild("Audio")
 local t = require(Package.Packages.t)
+local Trove = require(Package.Packages.Trove)
 
 -- Constants
 local DEFAULT_MIX_BUSES = {
@@ -30,6 +31,7 @@ Orchestra.VERSION = "0.0.1"
 function Orchestra.new()
 	local self = {}
 	self.ClassName = "Orchestra"
+	self._trove = Trove.new()
 
 	local comps = require(script.Components)
 	for compIndex, compValue in comps do
@@ -60,8 +62,7 @@ function Orchestra:Start()
 		return
 	end
 
-	-- Create our Main Out
-	self.MainOut = self.Output.new("Device", SoundService, {
+	self.MainOut = self._trove:Construct(self.Output, "Device", SoundService, {
 		Name = "MainOut",
 		Player = Players.LocalPlayer,
 	})
@@ -72,7 +73,7 @@ function Orchestra:Start()
 	Mixes.Parent = SoundService
 
 	-- Create our Master fader..
-	self.Master = self.MixBus.new(Mixes, {
+	self.Master = self._trove:Construct(self.Fader, SoundService.Mixes, {
 		Name = "Master",
 	})
 
@@ -95,18 +96,19 @@ function Orchestra:Start()
 	audioPart.Parent = workspace
 
 	-- Create a new Emitter
-	local emitter = self.Output.new("Emitter", audioPart, {
+	local emitter = self._trove:Construct(self.Output, "Emitter", audioPart, {
 		AudioInteractionGroup = "Music",
 		Name = "DefaultEmitter",
 	})
 
-	-- Add a new AudioLayer to the part
-	local audioLayer = self.Layer.new("Player", audioPart, {
+	-- Create a new AudioLayer
+	local audioLayer = self._trove:Construct(self.Layer, "Player", audioPart, {
+		Name = "DefaultAudioLayer",
 		AssetId = "rbxassetid://15287092994",
 	})
 
 	-- Add a AudioEffect to the Emitter
-	local audioEffect = self.Effects.new("Equalizer", emitter.Instance, {
+	local audioEffect = self._trove:Construct(self.Effects, "Equalizer", emitter.Instance, {
 		Name = "DefaultEqualizer",
 	})
 
@@ -118,7 +120,7 @@ function Orchestra:Start()
 	audioLayer.Stream:Play()
 end
 
-local tAddMix = t.union(t.string)
+local tAddMix = t.string
 
 --[=[
 	Adds a new mix bus to the engine with the given name. Mix buses are used to route audio from listeners to the master output.
@@ -133,7 +135,7 @@ function Orchestra:AddMix(busName: string)
 	end
 
 	-- Create a new mix bus
-	local mixBus = self.MixBus.new(SoundService.Mixes, {
+	local mixBus = self._trove:Construct(self.Fader, SoundService.Mixes, {
 		Name = string.format("MixBus:%s", busName),
 	})
 
@@ -147,18 +149,18 @@ function Orchestra:AddMix(busName: string)
 	return mixBus
 end
 
-local tAddListener = t.union(t.string)
+local tAddListener = t.string
 function Orchestra:AddListener(listenerName: string)
 	assert(tAddListener(listenerName))
 
 	-- Create a new Audio Listener
-	local listener = self.Stream.new("Listener", game.Workspace.CurrentCamera, {
+	local listener = self._trove:Construct(self.Stream, "Listener", game.Workspace.CurrentCamera, {
 		Name = string.format("Listener:%s", listenerName),
 		AudioInteractionGroup = listenerName,
 	})
 
-	-- Create a new Wire to connect the Listener to the MainOut
-	self.Wire.new(listener.Instance, listener.Out, self.Mixes[listenerName].In)
+	-- Wire it to the appropriate mix bus
+	listener.Routing:WireTo(self.Mixes[listenerName].In)
 
 	return listener
 end

@@ -36,30 +36,22 @@ local function ResolveAssetId(asset: string | number | Sound): string?
 	return nil
 end
 
-local tCreatePlayer = t.tuple(t.instanceIsA("Instance"), t.optional(tResolveAssetId), t.map(t.string, t.any))
-local function CreatePlayer(
-	parent: Instance,
-	asset: string | number | Sound | nil,
-	props: { [string]: any }?
-): AudioPlayer
-	assert(tCreatePlayer(parent, asset, props))
+local tCreatePlayer = t.tuple(t.Instance, t.map(t.string, t.any))
+local function CreatePlayer(parent: Instance, props: { [string]: any }?): AudioPlayer
+	assert(tCreatePlayer(parent, props))
 
 	local audioPlayer = Instance.new("AudioPlayer") :: AudioPlayer
 	audioPlayer.Parent = parent
 
-	if asset then
-		local id = ResolveAssetId(asset)
-		if id then
-			audioPlayer.Asset = id
+	if props and props.Asset then
+		local id = ResolveAssetId(props.Asset)
+		if not id then
+			error("Failed to resolve asset id for AudioPlayer with asset: " .. tostring(props.Asset))
 		end
 	end
 
-	if not props then
-		return audioPlayer
-	end
-
 	-- Apply properties
-	applyInstanceProps(audioPlayer, props)
+	applyInstanceProps(audioPlayer, props and props or {})
 
 	-- Return our object
 	return audioPlayer
@@ -76,17 +68,13 @@ AudioPlayer.__index = AudioPlayer
 	Represents an audio player that can be used to play audio in the game.
 ]=]
 
-local tAudioPlayer = t.tuple(t.Instance, t.optional(tResolveAssetId), t.optional(t.map(t.string, t.any)))
+local tAudioPlayer = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 
 --[=[
 	Creates a new AudioPlayer
 ]=]
-function AudioPlayer.new(
-	parent: Instance,
-	assetId: string | number | Sound | nil,
-	props: { [string]: any }?
-): Types.AUPlayback
-	assert(tAudioPlayer(parent, assetId, props))
+function AudioPlayer.new(parent: Instance, props: { [string]: any }?): Types.AUPlayback
+	assert(tAudioPlayer(parent, props))
 
 	-- Create a new Audio Player
 	local self = {}
@@ -96,7 +84,7 @@ function AudioPlayer.new(
 	self._trove = Trove.new()
 
 	-- Create our Audio Instance
-	self.Instance = CreatePlayer(parent, assetId, props)
+	self.Instance = CreatePlayer(parent, props)
 
 	-- Create our Signals
 	self.Changed = self._trove:Construct(Signal)
@@ -116,8 +104,10 @@ function AudioPlayer.new(
 		self.Looped:Fire()
 	end)
 
+	-- Expose our members
 	self.Out = self.Instance
 
+	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)
 
 	return setmetatable(self :: any, AudioPlayer) :: Types.AUPlayback
@@ -140,15 +130,13 @@ end
 	Pauses the audio
 ]=]
 function AudioPlayer:Pause()
-	self.Instance:Stop()
+	self.Instance:Pause()
 end
 
 --[=[
 	Stops the audio
 ]=]
 function AudioPlayer:Stop()
-	-- Stop with the new Audio Instance is more like a Pause,
-	-- if you want to stop the audio completely, you need to reset the TimePosition
 	self.Instance:Stop()
 	self.Instance.TimePosition = 0
 end

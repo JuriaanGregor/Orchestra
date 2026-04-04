@@ -100,7 +100,7 @@ function AudioRouting:GetWiresAtPin(pin: Types.AudioPin): { Types.AUWire }
 	assert(tGetWiresAtPin(pin))
 	assert(self:IsPin(pin), "Pin does not exist in this AudioRouting")
 
-	return self.Pins[pin]
+	return self.Routing[pin]
 end
 
 local tAddWire = t.tuple(t.string, t.table)
@@ -140,9 +140,6 @@ function AudioRouting:ClearPin(pin: Types.AudioPin)
 
 	-- Clear the pin
 	self.Routing[pin] = {}
-
-	-- Emit the changed signal
-	self:_Difference(_oldRecord, self.Routing)
 end
 
 local tGetPinsFromInstance = t.tuple(t.Instance)

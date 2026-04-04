@@ -65,6 +65,7 @@ function AudioFader.new(parent: Instance, props: { [string]: any }?): Types.AUFa
 
 	-- Create our Trove
 	self._trove = Trove.new()
+	self._tweenTrove = self._trove:Extend()
 
 	-- Create our AudioFader Instanc
 	self.Instance = CreateFader(parent, props) :: AudioFader
@@ -72,9 +73,13 @@ function AudioFader.new(parent: Instance, props: { [string]: any }?): Types.AUFa
 	-- Create our Routing
 	self.Routing = Routing.new(self.Instance, { "Input", "Output" })
 
-	self._isMuted = false
+	-- Expose our members
+	self.IsMuted = false
 	self.In = self.Instance
 	self.Out = self.Instance
+
+	-- Create our Completed Signal
+	self.Completed = self._tweenTrove:Construct(Signal)
 
 	self._trove:AttachToInstance(self.Instance)
 
@@ -94,7 +99,10 @@ local tSetFader = t.tuple(tVolume)
 function AudioFader:Set(volume: number)
 	assert(tSetFader(volume))
 
-	if self._isMuted then
+	-- Clean any Tweens we have, as we are doing a hard set
+	self._tweenTrove:Clean()
+
+	if self.IsMuted then
 		self._previousVolume = volume
 		warn(
 			string.format(
@@ -125,8 +133,10 @@ local tTween = t.tuple(tVolume, t.TweenInfo)
 function AudioFader:Tween(goal: number, tweenInfo: TweenInfo?): Types.Signal
 	assert(tTween(goal, tweenInfo))
 
-	local _signal = self._trove:Construct(Signal)
-	if self._isMuted then
+	-- Clean our Tween Trove
+	self._tweenTrove:Clean()
+
+	if self.IsMuted then
 		-- We set our volume to the goal, but we are muted
 		self._previousVolume = goal
 
@@ -141,27 +151,28 @@ function AudioFader:Tween(goal: number, tweenInfo: TweenInfo?): Types.Signal
 
 		-- We need to defer the signal firing because we are muted
 		task.defer(function()
-			_signal:Fire()
+			self.Completed:Fire()
 		end)
 	end
 
-	if not self._isMuted then
+	if not self.IsMuted then
 		-- Create a new Tween
-		local _tween =
-			self._trove:Add(TweenService:Create(self.Instance, tweenInfo or TweenInfo.new(1, Enum.EasingStyle.Linear), {
+		local tween = self._tweenTrove:Add(
+			TweenService:Create(self.Instance, tweenInfo or TweenInfo.new(1, Enum.EasingStyle.Linear), {
 				Volume = goal,
-			}))
+			})
+		)
 
 		-- Play our Tween
-		_tween:Play()
+		tween:Play()
 
 		-- Connect our Completed event to our Signal
-		self._trove:Connect(_tween.Completed, function()
-			_signal:Fire()
+		self._tweenTrove:Connect(tween.Completed, function()
+			self.Completed:Fire()
 		end)
 	end
 
-	return _signal
+	return self.Completed
 end
 
 local tFadeOut = t.tuple(t.numberPositive, t.optional(tVolume))
@@ -212,7 +223,7 @@ local tMute = t.tuple(t.optional(t.boolean))
 function AudioFader:Mute(noTween: boolean?)
 	assert(tMute(noTween))
 
-	if self._isMuted == false then
+	if self.IsMuted == false then
 		self._previousVolume = self.Instance.Volume
 
 		if noTween then
@@ -221,9 +232,9 @@ function AudioFader:Mute(noTween: boolean?)
 			self:FadeOut(0.5, 0)
 		end
 
-		self._isMuted = true
+		self.IsMuted = true
 	else
-		self._isMuted = false
+		self.IsMuted = false
 
 		if noTween then
 			self:Set(self._previousVolume)
@@ -231,10 +242,6 @@ function AudioFader:Mute(noTween: boolean?)
 			self:FadeIn(0.5, self._previousVolume)
 		end
 	end
-end
-
-function AudioFader:IsMuted()
-	return self._isMuted
 end
 
 --[=[

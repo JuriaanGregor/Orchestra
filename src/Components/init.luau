@@ -8,6 +8,5 @@ return table.freeze({
 	["Wire"] = require(script.Wire),
 	["Effects"] = require(script.Effects),
 	["Transforms"] = require(script.Transforms),
-	["MixBus"] = require(script.Mixbus),
 	--["Parameter"] = require(script.Parameter)
 })

@@ -78,11 +78,11 @@ local tSetGain = t.tuple(t.union(t.literal("Low"), t.literal("Mid"), t.literal("
 function AudioEqualizer:SetGain(bandIndex: "Low" | "Mid" | "High", gain: number)
 	assert(tSetGain(bandIndex, gain))
 
-	if self.bandIndex == "Low" then
+	if bandIndex == "Low" then
 		self.Instance.LowGain = gain
-	elseif self.bandIndex == "Mid" then
+	elseif bandIndex == "Mid" then
 		self.Instance.MidGain = gain
-	elseif self.bandIndex == "High" then
+	elseif bandIndex == "High" then
 		self.Instance.HighGain = gain
 	end
 end

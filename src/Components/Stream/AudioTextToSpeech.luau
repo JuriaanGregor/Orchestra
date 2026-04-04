@@ -71,6 +71,9 @@ function AudioTextToSpeech.new(parent: Instance, props: { [string]: any }?): Typ
 
 	self.Text = nil :: string?
 
+	self.Ended = self.Instance.Ended :: RBXScriptSignal
+	self.Looped = self.Instance.Looped :: RBXScriptSignal
+
 	self.In = self.Instance
 	self.Out = self.Instance
 
@@ -131,10 +134,6 @@ function AudioTextToSpeech:LoadText(text: string)
 			reject(result)
 		end
 	end)
-		:catch(function(err)
-			warn("AudioTextToSpeech: Failed to load text - " .. tostring(err))
-		end)
-		:await()
 end
 
 --[=[

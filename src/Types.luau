@@ -77,7 +77,7 @@ export type AURouting = AudioBase & {
 
 export type AUInput = AudioBase & {
 	Instance: AudioDeviceInput,
-	IsAudidble: (player: Player) -> boolean,
+	IsAudible: (player: Player) -> boolean,
 	Out: AudioMembers,
 	Mute: () -> (),
 }
@@ -110,6 +110,7 @@ export type AUStream = AudioBase & {
 	Stream: AUPlayback | AUListener | AUInput | AUTextToSpeech,
 	Play: () -> (),
 	Pause: () -> (),
+	Stop: () -> (),
 	Routing: AURouting,
 	Out: AudioMembers,
 }
@@ -155,20 +156,13 @@ export type AUFader = AudioBase & {
 	In: AudioMembers,
 	Out: AudioMembers,
 	Routing: AURouting,
-}
-
-export type AUMixBus = AudioBase & {
-	Instance: AudioFader,
-	In: AudioMembers,
-	Out: AudioMembers,
-	Routing: AURouting,
 	Set: (volume: number) -> (),
 	Tween: (goal: number, tweenInfo: TweenInfo?) -> Signal,
 	FadeOut: (duration: number, goal: number?) -> Signal,
 	FadeIn: (duration: number, goal: number?) -> Signal,
 	Mute: (noTween: boolean?) -> (),
-	_isMuted: boolean,
-	_previousVolume: number,
+	IsMuted: boolean,
+	Completed: Signal,
 }
 
 export type AUTransform = AudioBase & {

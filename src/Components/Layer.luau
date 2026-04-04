@@ -40,18 +40,28 @@ function AudioLayer.new(inputType: Types.AudioStreamType, parent: Instance, prop
 	-- Create our Trove
 	self._trove = Trove.new()
 
+	-- Create our AudioLayer folder
+	local layerFolder = Instance.new("Folder")
+	layerFolder.Name = "AudioLayer"
+	layerFolder.Parent = parent
+
 	-- Create our Components
 	self._components = {}
-	self._components.AudioStream = Stream.new(inputType, parent, props)
-	self._components.AudioFader = Fader.new(self._components.AudioStream.Instance, props)
+	self._components.AudioStream = Stream.new(inputType, layerFolder, props) :: Types.AUStream
+	self._components.AudioFader = Fader.new(self._components.AudioStream.Instance, props) :: Types.AUFader
 
-	-- Create our Routing
-	self.Routing = self._components.AudioFader.Routing
-
-	-- Expose our Members
+	-- Expose our components
 	self.Stream = self._components.AudioStream
 	self.Fader = self._components.AudioFader
-	self.Out = self._components.AudioFader.Out
+
+	-- Expose our members
+	self.Routing = self.Fader.Routing
+	self.Out = self.Fader.Out
+
+	-- Attach to Trove
+	self._trove:AttachToInstance(layerFolder)
+	self._trove:Add(self.Stream)
+	self._trove:Add(self.Fader)
 
 	-- Wire our AudioStream to our AudioFader
 	self.Stream.Routing:WireTo(self.Fader.In)

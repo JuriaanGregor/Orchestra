@@ -13,15 +13,18 @@ local Types = require(Package.Types)
 local applyInstanceProps = require(Package.Instances.applyInstanceProps)
 
 -- Functions
-local tCreateDeviceInput = t.tuple(t.Instance, t.instanceIsA("Player"))
-local function CreateDeviceInput(parent: Instance, player: Player?, props: { [string]: any }?): AudioDeviceInput
-	assert(tCreateDeviceInput(parent, player))
-
+local function CreateDeviceInput(parent: Instance, props: { [string]: any }?): AudioDeviceInput
 	local input = Instance.new("AudioDeviceInput")
 	input.Parent = parent
 
-	if player then
-		input.Player = player
+	-- Make sure that a valid player is provided if the access type is not "Everyone"
+	if props then
+		if props.Player then
+			assert(
+				typeof(props.Player) == "Instance" and props.Player:IsA("Player"),
+				"Player property must be a Player instance"
+			)
+		end
 	end
 
 	-- Apply properties
@@ -41,13 +44,13 @@ AudioDeviceInput.__index = AudioDeviceInput
 
 	Represents an audio device input. This is used to capture audio from a specific player device
 ]=]
-local tAudioDeviceInput = t.tuple(t.Instance, t.instanceIsA("Player"), t.optional(t.map(t.string, t.any)))
+local tAudioDeviceInput = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 
 --[=[
 	Creates a new AudioDeviceInput
 ]=]
-function AudioDeviceInput.new(parent: Instance, player: Player, props: { [string]: any }?): Types.AUInput
-	assert(tAudioDeviceInput(parent, player, props))
+function AudioDeviceInput.new(parent: Instance, props: { [string]: any }?): Types.AUInput
+	assert(tAudioDeviceInput(parent, props))
 
 	-- Create a new Audio Device input
 	local self = {}
@@ -57,7 +60,7 @@ function AudioDeviceInput.new(parent: Instance, player: Player, props: { [string
 	self._trove = Trove.new()
 
 	-- Create our Audio Device Input Instance
-	self.Instance = CreateDeviceInput(parent, player)
+	self.Instance = CreateDeviceInput(parent, props)
 
 	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)
@@ -71,7 +74,7 @@ local tIsAudible = t.tuple(t.instanceIsA("Player"))
 --[=[
 	Returns whether the audio device input is audible for the given player
 ]=]
-function AudioDeviceInput:IsAudidble(player: Player): boolean
+function AudioDeviceInput:IsAudible(player: Player): boolean
 	assert(tIsAudible(player))
 
 	local input = self.Instance

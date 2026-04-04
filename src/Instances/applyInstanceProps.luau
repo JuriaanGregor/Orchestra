@@ -114,42 +114,45 @@ local function applyInstanceProps(applyTo: Instance, props: { [string]: any })
 						setAttribute(applyTo, attrIndex, attrValue)
 					end
 				else
-					warn(
+					error(
 						string.format(
 							"[applyInstanceProps] - Invalid type for 'Attributes' on %s. Expected table, got %s.",
 							tostring(applyTo.ClassName),
 							tostring(typeof(propValue))
-						)
+						),
+						2
 					)
 				end
 			elseif propIndex == "Asset" or propIndex == "Content" or propIndex == "AssetId" then
-				-- Try to resolve our asset if needed, and parse it to a friendly format..
-				if typeof(propValue) == "number" then
-					-- If the value is already a number, we can just use it
-					propValue = propValue
-				elseif typeof(propValue) == "string" then
+				if typeof(propValue) == "string" then
 					local assetId = tonumber(propValue)
 					if typeof(assetId) == "number" then
 						propValue = assetId
 					else
-						warn(
-							string.format(
-								"[applyInstanceProps] - Invalid string format for asset id on %s. Expected a string convertible to number, got %s.",
-								tostring(applyTo.ClassName),
-								tostring(propValue)
+						-- Try to match rbxassetid://<number> pattern to extract the number
+						local idMatch = string.match(propValue, "rbxassetid://(%d+)")
+						if not idMatch then
+							error(
+								string.format(
+									"[applyInstanceProps] - Invalid string format for asset id on %s. Expected a string convertible to number or in the format 'rbxassetid://<number>', got %s.",
+									tostring(applyTo.ClassName),
+									tostring(propValue)
+								),
+								2
 							)
-						)
+						end
 					end
 				elseif typeof(propValue) == "Instance" then
 					if propValue:IsA("Sound") then
 						propValue = propValue.SoundId
 					else
-						warn(
+						error(
 							string.format(
 								"[applyInstanceProps] - Invalid Instance type for asset on %s. Expected Sound, got %s.",
 								tostring(applyTo.ClassName),
 								tostring(propValue.ClassName)
-							)
+							),
+							2
 						)
 					end
 				end

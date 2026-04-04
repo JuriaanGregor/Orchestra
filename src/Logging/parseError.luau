@@ -11,6 +11,7 @@ local function parseError(err: string): Types.Error
 		raw = err,
 		message = err:gsub("^.+:%d+:%s*", ""),
 		trace = debug.traceback(nil, 2),
+		context = nil,
 	}
 end
 

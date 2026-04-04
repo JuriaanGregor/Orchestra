@@ -19,17 +19,16 @@ local AUDIO_OUTPUTS: { [Types.AudioOutputType]: any } = {
 
 -- Functions
 local tCreateOutput = t.tuple(t.string, t.Instance, t.optional(t.map(t.string, t.any)))
-function CreateOutput(outputType: Types.AudioOutputType, parent: Instance, props: { [string]: any }?): Types.AUOutput?
+local function CreateOutput(
+	outputType: Types.AudioOutputType,
+	parent: Instance,
+	props: { [string]: any }?
+): Types.AUOutput?
 	assert(tCreateOutput(outputType, parent, props))
 
 	if outputType == "Device" then
 		local AudioDeviceOutput = AUDIO_OUTPUTS[outputType]
-
-		local listener = nil :: Player?
-		if props then
-			listener = typeof(props.Listener) == "Player" and props.Listener or nil
-		end
-		return AudioDeviceOutput.new(parent, listener, props)
+		return AudioDeviceOutput.new(parent, props)
 	elseif outputType == "Emitter" then
 		local AudioEmitter = AUDIO_OUTPUTS[outputType]
 		return AudioEmitter.new(parent, props)

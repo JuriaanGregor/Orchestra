@@ -81,12 +81,15 @@ function AudioTransform.new(
 		error("Invalid transformType")
 	end
 
-	self.Routing = Routing.new(AudioComponent.Instance :: Instance, { "Output" })
+	self.Routing = Routing.new(AudioComponent.Instance :: Instance, { "Input", "Output" })
 	self.TransformType = transformType
 	self.Transform = AudioComponent
+
+	-- Expose our members
 	self.Instance = AudioComponent.Instance
 	self.Out = self.Instance
 
+	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)
 
 	return setmetatable(self :: any, AudioTransform) :: Types.AUTransform

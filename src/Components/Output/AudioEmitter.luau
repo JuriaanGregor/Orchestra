@@ -70,10 +70,17 @@ function AudioEmitter.new(parent: Instance, props: { [string]: any }?): Types.AU
 	-- Create our AudioEmitter Instance
 	self.Instance = CreateAudioEmitter(parent, props)
 
+	-- Expose our members
+	self.In = self.Instance
+
 	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)
 
 	return setmetatable(self :: any, AudioEmitter) :: Types.AUEmitter
+end
+
+function AudioEmitter:__tostring()
+	return "AudioEmitter"
 end
 
 local tDistanceAttenuation = t.map(t.numberMin(0), t.numberConstrained(0, 1))
