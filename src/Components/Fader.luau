@@ -6,6 +6,7 @@ local TweenService = game:GetService("TweenService")
 
 -- Import > Packages
 local Package = ReplicatedStorage:WaitForChild("Audio")
+local Enums = require("../Enums")
 local t = require(Package.Packages.t)
 local Trove = require(Package.Packages.Trove)
 local Signal = require(Package.Packages.Signal)
@@ -71,7 +72,7 @@ function AudioFader.new(parent: Instance, props: { [string]: any }?): Types.AUFa
 	self.Instance = CreateFader(parent, props) :: AudioFader
 
 	-- Create our Routing
-	self.Routing = Routing.new(self.Instance, { "Input", "Output" })
+	self.Routing = Routing.new(self.Instance, { Enums.Pin.Input, Enums.Pin.Output })
 
 	-- Expose our members
 	self.IsMuted = false

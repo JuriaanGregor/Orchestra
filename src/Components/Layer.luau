@@ -48,6 +48,12 @@ function AudioLayer.new(inputType: Types.AudioStreamType, parent: Instance, prop
 	-- Create our Components
 	self._components = {}
 	self._components.AudioStream = Stream.new(inputType, layerFolder, props) :: Types.AUStream
+
+	-- Make sure that our Fader is named props.Name with an AudioFader suffix if props.Name exists
+	if props and typeof(props.Name) == "string" then
+		props.Name = props.Name .. ":Fader"
+	end
+
 	self._components.AudioFader = Fader.new(self._components.AudioStream.Instance, props) :: Types.AUFader
 
 	-- Expose our components

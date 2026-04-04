@@ -11,10 +11,13 @@ local Trove = require(Package.Packages.Trove)
 -- Types
 local Types = require(Package.Types)
 
+-- Enums
+local Enums = require(Package.Enums)
+
 -- Variables
 local AUDIO_OUTPUTS: { [Types.AudioOutputType]: any } = {
-	["Device"] = require(script.AudioDeviceOutput),
-	["Emitter"] = require(script.AudioEmitter),
+	[Enums.Output.Device.Name] = require(script.AudioDeviceOutput),
+	[Enums.Output.Emitter.Name] = require(script.AudioEmitter),
 }
 
 -- Functions
@@ -26,12 +29,8 @@ local function CreateOutput(
 ): Types.AUOutput?
 	assert(tCreateOutput(outputType, parent, props))
 
-	if outputType == "Device" then
-		local AudioDeviceOutput = AUDIO_OUTPUTS[outputType]
-		return AudioDeviceOutput.new(parent, props)
-	elseif outputType == "Emitter" then
-		local AudioEmitter = AUDIO_OUTPUTS[outputType]
-		return AudioEmitter.new(parent, props)
+	if AUDIO_OUTPUTS[outputType] then
+		return AUDIO_OUTPUTS[outputType].new(parent, props)
 	end
 
 	return nil
@@ -63,15 +62,6 @@ function AudioOutput.new(outputType: Types.AudioOutputType, parent: Instance, pr
 	-- Create our Trove
 	self._trove = Trove.new()
 
-	local AudioComponent = AUDIO_OUTPUTS[outputType]
-	if not AudioComponent then
-		error("Invalid outputType")
-	end
-
-	self.In = nil :: Types.AudioMembers?
-	self.Output = nil :: Types.AUOutput?
-	self.Instance = nil :: Types.AudioMembers?
-
 	-- Create our Output
 	local Output = CreateOutput(outputType, parent, props)
 	if not Output then
@@ -82,6 +72,7 @@ function AudioOutput.new(outputType: Types.AudioOutputType, parent: Instance, pr
 	self.Instance = Output.Instance
 	self.In = self.Instance
 
+	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance :: any)
 
 	return setmetatable(self :: any, AudioOutput) :: Types.AUOutput

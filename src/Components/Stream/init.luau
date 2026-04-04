@@ -10,14 +10,19 @@ local Trove = require(Package.Packages.Trove)
 
 -- Import > Package
 local Routing = require(Package.Components.Routing)
+
+-- Types
 local Types = require(Package.Types)
+
+-- Enums
+local Enums = require(Package.Enums)
 
 -- Variables
 local AUDIO_STREAMS: { [Types.AudioStreamType]: any } = {
-	["Player"] = require(script.AudioPlayer),
-	["Input"] = require(script.AudioDeviceInput),
-	["Listener"] = require(script.AudioListener),
-	["TextToSpeech"] = require(script.AudioTextToSpeech),
+	[Enums.Stream.Player.Name] = require(script.AudioPlayer),
+	[Enums.Stream.Input.Name] = require(script.AudioDeviceInput),
+	[Enums.Stream.Listener.Name] = require(script.AudioListener),
+	[Enums.Stream.TextToSpeech.Name] = require(script.AudioTextToSpeech),
 }
 
 -- Functions
@@ -29,21 +34,11 @@ local function CreateStream(
 ): (Types.AUInput | Types.AUPlayback | Types.AUListener | Types.AUTextToSpeech)?
 	assert(tCreateStream(streamType, parent, props))
 
-	if streamType == "Player" then
-		local AudioPlayer = AUDIO_STREAMS[streamType]
-		return AudioPlayer.new(parent, props) :: Types.AUPlayback
-	elseif streamType == "Input" then
-		local AudioDeviceInput = AUDIO_STREAMS[streamType]
-		return AudioDeviceInput.new(parent, props) :: Types.AUInput
-	elseif streamType == "Listener" then
-		local AudioListener = AUDIO_STREAMS[streamType]
-		return AudioListener.new(parent, props) :: Types.AUListener
-	elseif streamType == "TextToSpeech" then
-		local AudioTextToSpeech = AUDIO_STREAMS[streamType]
-		return AudioTextToSpeech.new(parent, props) :: Types.AUTextToSpeech
-	else
-		error(string.format("Invalid streamType: %s", streamType))
+	if AUDIO_STREAMS[streamType] then
+		return AUDIO_STREAMS[streamType].new(parent, props)
 	end
+
+	return nil
 end
 
 ---------------------------------------------------------------------
@@ -80,22 +75,28 @@ function AudioStream.new(streamType: Types.AudioStreamType, parent: Instance, pr
 		error("Invalid streamType")
 	end
 
-	self.Routing = Routing.new(AudioComponent.Instance :: Instance, { "Output" })
+	-- Creature our Routing
+	self.Routing = Routing.new(AudioComponent.Instance :: Instance, { Enums.Pin.Output })
+
+	-- Set our Stream type
 	self.StreamType = streamType
+
+	-- Expose our members
 	self.Stream = AudioComponent
 	self.Instance = AudioComponent.Instance :: Instance
 	self.Out = self.Instance
 
-	if self.StreamType == "Player" then
+	if self.StreamType == Enums.Stream.Player then
 		self.Ended = (self.Stream :: Types.AUPlayback).Ended
 		self.Looped = (self.Stream :: Types.AUPlayback).Looped
 		self.Loaded = (self.Stream :: Types.AUPlayback).Loaded
 		self.Changed = (self.Stream :: Types.AUPlayback).Changed
-	elseif self.StreamType == "TextToSpeech" then
+	elseif self.StreamType == Enums.Stream.TextToSpeech then
 		self.Ended = (self.Stream :: Types.AUTextToSpeech).Ended
 		self.Looped = (self.Stream :: Types.AUTextToSpeech).Looped
 	end
 
+	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)
 
 	return setmetatable(self :: any, AudioStream) :: Types.AUStream

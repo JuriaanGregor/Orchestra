@@ -10,12 +10,17 @@ local Trove = require(Package.Packages.Trove)
 
 -- Import > Package
 local Routing = require(Package.Components.Routing)
+
+-- Types
 local Types = require(Package.Types)
+
+-- Enums
+local Enums = require(Package.Enums)
 
 -- Variables
 local AUDIO_TRANSFORMS: { [string]: any } = {
-	["ChannelMixer"] = require(script.AudioChannelMixer),
-	["ChannelSplitter"] = require(script.AudioChannelSplitter),
+	[Enums.Transform.ChannelMixer.Name] = require(script.AudioChannelMixer),
+	[Enums.Transform.ChannelSplitter.Name] = require(script.AudioChannelSplitter),
 }
 
 -- Functions
@@ -28,17 +33,11 @@ function CreateTransform(
 )
 	assert(tCreateTransform(transformType, layoutMode, parent, props))
 
-	if transformType == "ChannelMixer" then
-		local audioMixer = AUDIO_TRANSFORMS[transformType]
-
-		return audioMixer.new(layoutMode, parent, props)
-	elseif transformType == "ChannelSplitter" then
-		local audioSplitter = AUDIO_TRANSFORMS[transformType]
-
-		return audioSplitter.new(layoutMode, parent, props)
-	else
-		error("Invalid audioTransform")
+	if AUDIO_TRANSFORMS[transformType] then
+		return AUDIO_TRANSFORMS[transformType].new(layoutMode, parent, props)
 	end
+
+	return nil
 end
 
 ---------------------------------------------------------------------
@@ -81,7 +80,7 @@ function AudioTransform.new(
 		error("Invalid transformType")
 	end
 
-	self.Routing = Routing.new(AudioComponent.Instance :: Instance, { "Input", "Output" })
+	self.Routing = Routing.new(AudioComponent.Instance :: Instance, { Enums.Pin.Input, Enums.Pin.Output })
 	self.TransformType = transformType
 	self.Transform = AudioComponent
 

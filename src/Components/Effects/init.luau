@@ -13,18 +13,21 @@ local Routing = require(Package.Components.Routing)
 -- Types
 local Types = require(Package.Types)
 
+-- Enums
+local Enums = require(Package.Enums)
+
 -- Variables
 local AUDIO_EFFECTS: { [string]: any } = {
-	["Equalizer"] = require(script.AudioEqualizer),
-	["Reverb"] = require(script.AudioReverb),
-	["Compressor"] = require(script.AudioCompressor),
-	["Chorus"] = require(script.AudioChorus),
-	["Distortion"] = require(script.AudioDistortion),
-	["Echo"] = require(script.AudioEcho),
-	["Flanger"] = require(script.AudioFlanger),
-	["PitchShift"] = require(script.AudioPitchShift),
-	["Tremolo"] = require(script.AudioTremolo),
-	["Gate"] = require(script.AudioGate),
+	[Enums.Effect.Equalizer.Name] = require(script.AudioEqualizer),
+	[Enums.Effect.Reverb.Name] = require(script.AudioReverb),
+	[Enums.Effect.Compressor.Name] = require(script.AudioCompressor),
+	[Enums.Effect.Chorus.Name] = require(script.AudioChorus),
+	[Enums.Effect.Distortion.Name] = require(script.AudioDistortion),
+	[Enums.Effect.Echo.Name] = require(script.AudioEcho),
+	[Enums.Effect.Flanger.Name] = require(script.AudioFlanger),
+	[Enums.Effect.PitchShift.Name] = require(script.AudioPitchShift),
+	[Enums.Effect.Tremolo.Name] = require(script.AudioTremolo),
+	[Enums.Effect.Gate.Name] = require(script.AudioGate),
 }
 
 -- Functions
@@ -73,7 +76,7 @@ function AudioEffect.new(effectType: string, parent: Instance, props: { [string]
 		error("Invalid effectType")
 	end
 
-	self.Routing = Routing.new(Effect.Instance :: Instance, { "Output", "Input" })
+	self.Routing = Routing.new(Effect.Instance :: Instance, { Enums.Pin.Input, Enums.Pin.Output, Enums.Pin.Sidechain })
 	self.EffectType = effectType
 	self.Instance = Effect.Instance
 

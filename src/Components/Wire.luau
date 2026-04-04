@@ -19,27 +19,27 @@ local WIRES = {}
 -- Functions
 local tCreateWire = t.tuple(t.Instance, t.optional(t.Instance), t.optional(t.Instance))
 local tAudioMember = t.valueOf(Types.AudioChildren)
-local function CreateWire(parent: Instance, input: Instance?, output: Instance?): Wire
-	assert(tCreateWire(parent, input, output))
+local function CreateWire(parent: Instance, props: { [string]: any }): Wire
+	assert(tCreateWire(parent, props and props.Input, props and props.Output))
 
-	if input then
-		assert(tAudioMember(input.ClassName))
+	if props.Input then
+		assert(tAudioMember(props.Input.ClassName))
 	end
 
-	if output then
-		assert(tAudioMember(output.ClassName))
+	if props.Output then
+		assert(tAudioMember(props.Output.ClassName))
 	end
 
 	local Wire = Instance.new("Wire")
 	Wire.Name = "AudioWire"
 	Wire.Parent = parent
 
-	if input then
-		Wire.SourceInstance = input
+	if props.Input then
+		Wire.SourceInstance = props.Input
 	end
 
-	if output then
-		Wire.TargetInstance = output
+	if props.Output then
+		Wire.TargetInstance = props.Output
 	end
 
 	return Wire
@@ -56,41 +56,50 @@ AudioWire.__index = AudioWire
 	Represents an AudioWire that connects two Audio Instances together.
 ]=]
 
-local tAudioWire = t.tuple(t.Instance, t.optional(t.Instance), t.optional(t.Instance))
+local tAudioWire = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 
 --[=[
 	Creates a new AudioWire
 ]=]
-function AudioWire.new(parent: Instance, input: Instance?, output: Instance?): Types.AUWire
-	assert(tAudioWire(parent, input, output))
-
-	if input then
-		assert(tAudioMember(input.ClassName))
-	end
-
-	if output then
-		assert(tAudioMember(output.ClassName))
-	end
+function AudioWire.new(parent: Instance, props: { [string]: any }?): Types.AUWire
+	assert(tAudioWire(parent, props))
 
 	-- Create a new Audio Wire
 	local self = {}
 	self.ClassName = "AudioWire"
 
-	-- Create our Wire Instance & ID
-	self.Instance = CreateWire(parent, input, output)
-	self.ID = HttpService:GenerateGUID(false)
+	if props then
+		if not props.Input then
+			assert(tAudioMember(props.Input.ClassName))
+		end
+
+		if props.Output then
+			assert(tAudioMember(props.Output.ClassName))
+		end
+	end
+
+	-- Creature our Wire instance ID..
+	local ID = HttpService:GenerateGUID(false)
+
+	-- Apply it to our props so it can be used in our CreateWire function
+	if props and props.Attributes and typeof(props.Attributes) == "table" then
+		props.Attributes.ID = ID
+	elseif props then
+		if props.Attributes and typeof(props.Attributes) == "table" then
+			props.Attributes.ID = ID
+		else
+			props.Attributes = { ID = ID }
+		end
+	end
+
+	-- Create our Wire Instance
+	self.Instance = CreateWire(parent, typeof(props) == "table" and props or {})
 
 	-- Create our Trove
 	self._trove = Trove.new()
 
 	-- Signals
 	self.Changed = self._trove:Construct(Signal)
-
-	-- Add our ID to our Wire
-	self.Instance:SetAttribute("ID", self.ID)
-
-	-- Set the AudioWire tag
-	self.Instance:AddTag("AudioWire")
 
 	self._trove:Add(self.Instance:GetPropertyChangedSignal("SourceInstance"):Connect(function()
 		self.Changed:Fire("SourceInstance", self.Instance.SourceInstance)
@@ -101,13 +110,14 @@ function AudioWire.new(parent: Instance, input: Instance?, output: Instance?): T
 	end))
 
 	self._trove:Add(function()
-		WIRES[self.ID] = nil
+		WIRES[ID] = nil
 	end)
 
+	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)
 
 	-- Add our Wire our WIRES table
-	WIRES[self.ID] = self.Instance
+	WIRES[ID] = self.Instance
 
 	return setmetatable(self :: any, AudioWire) :: Types.AUWire
 end
