@@ -2,6 +2,8 @@
 --!nolint LocalUnused
 --!nolint LocalShadow
 
+local RunService = game:GetService("RunService")
+
 --[[
     Applies properties to an instance
 ]]
@@ -129,14 +131,49 @@ local function applyInstanceProps(applyTo: Instance, props: { [string]: any })
 					if typeof(assetId) == "number" then
 						propValue = assetId
 					else
-						-- Try to match rbxassetid://<number> pattern to extract the number
-						local idMatch = string.match(propValue, "rbxassetid://(%d+)")
-						if not idMatch then
+						if string.match(propValue, "^rbxassetid://") then
+							propValue = propValue
+
+						-- Check or the path starts with rbxasset://
+						elseif string.match(propValue, "^rbxasset://") then
+							-- RbxAsset paths are only supported in Studio, so we error if we are not in Studio
+							if not RunService:IsStudio() then
+								error(
+									string.format(
+										"[applyInstanceProps] - Invalid asset path format for %s. Asset paths starting with 'rbxasset://' are only supported in Studio, got %s.",
+										tostring(applyTo.ClassName),
+										tostring(propValue)
+									),
+									2
+								)
+							end
+
+							-- Check or the path ends with a file extension and check or that file extension is .wav, .mp3, .ogg
+							local ALLOWED_EXTENSIONS = { ".wav", ".mp3", ".ogg" }
+							local hasAllowedExtension = false
+							for _, ext in ALLOWED_EXTENSIONS do
+								if string.match(propValue, ext .. "$") then
+									hasAllowedExtension = true
+									break
+								end
+							end
+
+							if not hasAllowedExtension then
+								error(
+									string.format(
+										"[applyInstanceProps] - Invalid asset path format for %s. Expected a path starting with 'rbxasset://' and ending with .wav, .mp3, .ogg or .flac, got %s.",
+										tostring(applyTo.ClassName),
+										tostring(propValue)
+									),
+									2
+								)
+							end
+						else
 							error(
 								string.format(
-									"[applyInstanceProps] - Invalid string format for asset id on %s. Expected a string convertible to number or in the format 'rbxassetid://<number>', got %s.",
+									"[applyInstanceProps] - Invalid asset format for %s. Expected a string in the format 'rbxassetid://123456', 'rbxasset://path/to/asset.mp3', got %s.",
 									tostring(applyTo.ClassName),
-									tostring(propValue)
+									tostring(typeof(propValue))
 								),
 								2
 							)
