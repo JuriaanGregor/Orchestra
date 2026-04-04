@@ -161,7 +161,7 @@ local function applyInstanceProps(applyTo: Instance, props: { [string]: any })
 							if not hasAllowedExtension then
 								error(
 									string.format(
-										"[applyInstanceProps] - Invalid asset path format for %s. Expected a path starting with 'rbxasset://' and ending with .wav, .mp3, .ogg or .flac, got %s.",
+										"[applyInstanceProps] - Invalid asset path format for %s. Expected a path starting with 'rbxasset://' and ending with .wav, .mp3, .ogg, got %s.",
 										tostring(applyTo.ClassName),
 										tostring(propValue)
 									),
