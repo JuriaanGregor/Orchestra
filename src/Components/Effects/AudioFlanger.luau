@@ -47,6 +47,7 @@ function AudioFlanger.new(parent: Instance, props: { [string]: any }?)
 
 	-- Create a new AudioFlanger
 	local self = {}
+	self.Type = "Effects"
 	self.ClassName = "AudioFlanger"
 
 	-- Create our Trove

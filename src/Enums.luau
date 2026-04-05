@@ -65,6 +65,7 @@ local Enums = {
 		"AudioTremolo",
 		"AudioChannelSplitter",
 		"AudioChannelMixer",
+		"AudioLimiter",
 	}),
 } :: { [string]: EnumList }
 

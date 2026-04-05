@@ -50,7 +50,7 @@ function AudioChannelMixer.new(parent: Instance, props: { [string]: any }?): Typ
 
 	-- Create a new AudioChannelMixer
 	local self = {}
-	self.Tyhpe = "Transform"
+	self.Type = "Transform"
 	self.ClassName = "AudioChannelMixer"
 
 	-- Create our Trove

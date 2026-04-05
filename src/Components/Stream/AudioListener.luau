@@ -43,6 +43,7 @@ function AudioListener.new(parent: Instance, props: { [string]: any }?): Types.A
 	assert(tAudioListener(parent, props))
 
 	local self = {}
+	self.Type = "Stream"
 	self.ClassName = "AudioListener"
 
 	-- Create our Trove

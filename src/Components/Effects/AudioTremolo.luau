@@ -47,6 +47,7 @@ function AudioTremolo.new(parent: Instance, props: { [string]: any }?)
 
 	-- Create a new AudioTremolo
 	local self = {}
+	self.Type = "Effects"
 	self.ClassName = "AudioTremolo"
 
 	-- Create our Trove

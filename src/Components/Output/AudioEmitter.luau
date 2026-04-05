@@ -63,6 +63,7 @@ function AudioEmitter.new(parent: Instance, props: { [string]: any }?): Types.AU
 	assert(tAudioEmitter(parent, props))
 
 	local self = {}
+	self.Type = "Output"
 	self.ClassName = "AudioEmitter"
 
 	-- Create our Trove

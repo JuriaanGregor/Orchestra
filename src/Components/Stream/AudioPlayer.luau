@@ -134,6 +134,7 @@ function AudioPlayer.new(parent: Instance, props: { [string]: any }?): Types.AUP
 
 	-- Create a new Audio Player
 	local self = {}
+	self.Type = "Stream"
 	self.ClassName = "AudioPlayer"
 
 	-- Create our Trove

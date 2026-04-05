@@ -47,6 +47,7 @@ function AudioReverb.new(parent: Instance, props: { [string]: any }?)
 
 	-- Create a new AudioReverb
 	local self = {}
+	self.Type = "Effects"
 	self.ClassName = "AudioReverb"
 
 	-- Create our Trove

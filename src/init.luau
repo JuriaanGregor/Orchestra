@@ -2,6 +2,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 -- Import > Packages
 local Package = ReplicatedStorage:WaitForChild("Audio")
@@ -10,6 +11,7 @@ local Trove = require(Package.Packages.Trove)
 
 -- Import > Enums
 local Enums = require(Package.Enums)
+local VolumeUtility = require(Package.Utility.volume)
 
 -- Constants
 local DEFAULT_MIX_BUSES = {
@@ -73,7 +75,7 @@ function Orchestra:Start()
 	})
 
 	-- Create Mixes folder
-	local Mixes = Instance.new("Folder")
+	local Mixes = self._trove:Construct(Instance, "Folder")
 	Mixes.Name = "Mixes"
 	Mixes.Parent = SoundService
 
@@ -92,7 +94,7 @@ function Orchestra:Start()
 	end
 
 	-- Create a new Default part with a SoundId in it..
-	local audioPart = Instance.new("Part")
+	local audioPart = self._trove:Construct(Instance, "Part")
 	audioPart.Name = "AudioEngine"
 	audioPart.Position = Vector3.new(0, 4, 0)
 	audioPart.Size = Vector3.new(4, 4, 4)
@@ -101,7 +103,7 @@ function Orchestra:Start()
 	audioPart.CanCollide = false
 	audioPart.Parent = workspace
 
-	local audioPartL = Instance.new("Part")
+	local audioPartL = self._trove:Construct(Instance, "Part")
 	audioPartL.Name = "AudioEngineL"
 	audioPartL.Position = Vector3.new(-10, 4, 0)
 	audioPartL.Size = Vector3.new(4, 4, 4)
@@ -110,7 +112,7 @@ function Orchestra:Start()
 	audioPartL.CanCollide = false
 	audioPartL.Parent = workspace
 
-	local audioPartR = Instance.new("Part")
+	local audioPartR = self._trove:Construct(Instance, "Part")
 	audioPartR.Name = "AudioEngineR"
 	audioPartR.Position = Vector3.new(10, 4, 0)
 	audioPartR.Size = Vector3.new(4, 4, 4)
@@ -129,6 +131,13 @@ function Orchestra:Start()
 	local audioEffect = self._trove:Construct(self.Effects, Enums.Effect.Equalizer, audioLayer.Instance, {
 		Name = "DefaultEqualizer",
 	})
+
+	-- Create our AudioAnalyzer
+	local audioAnalyzer = self._trove:Construct(self.Analyzers, Enums.Analyzer.Spectrum, audioLayer.Instance, {
+		Name = "SpectrumAnalyzer",
+	})
+
+	audioEffect.Routing:WireTo(audioAnalyzer.In)
 
 	-- Create a channel transform
 	local audioTransform =

@@ -47,6 +47,7 @@ function AudioEqualizer.new(parent: Instance, props: { [string]: any }?)
 
 	-- Create a new AudioEqualizer
 	local self = {}
+	self.Type = "Effects"
 	self.ClassName = "AudioEqualizer"
 
 	-- Create our Trove

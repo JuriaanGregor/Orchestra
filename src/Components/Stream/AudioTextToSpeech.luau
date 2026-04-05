@@ -56,6 +56,7 @@ function AudioTextToSpeech.new(parent: Instance, props: { [string]: any }?): Typ
 
 	-- Create a new AudioTextToSpeech
 	local self = {}
+	self.Type = "Stream"
 	self.ClassName = "AudioTextToSpeech"
 
 	-- Create our Trove
@@ -100,8 +101,10 @@ function AudioTextToSpeech:Play()
 		-- If not loaded, attempt to load it once..
 		self.Instance:Load()
 
-		self.Instance.Loaded:Once(function()
+		self._subTrove = self._trove:Extend()
+		self._subTrove:Connect(self.Instance.Loaded, function()
 			self.Instance:Play()
+			self._subTrove:Destroy()
 		end)
 
 		warn("AudioTextToSpeech: Cannot play because it is not loaded.")

@@ -50,6 +50,7 @@ function AudioChannelSplitter.new(parent: Instance, props: { [string]: any }?): 
 
 	-- Create a new AudioChannelSplitter
 	local self = {}
+	self.Type = "Transform"
 	self.ClassName = "AudioChannelSplitter"
 
 	-- Create our Trove

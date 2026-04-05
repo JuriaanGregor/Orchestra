@@ -47,6 +47,7 @@ function AudioPitchShift.new(parent: Instance, props: { [string]: any }?)
 
 	-- Create a new AudioPitchShift
 	local self = {}
+	self.Type = "Effects"
 	self.ClassName = "AudioPitchShift"
 
 	-- Create our Trove

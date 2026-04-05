@@ -77,7 +77,7 @@ function AudioWire.new(parent: Instance, props: { [string]: any }?): Types.AUWir
 	-- Creature our Wire instance ID..
 	local ID = HttpService:GenerateGUID(false)
 
-	-- Apply it to our props so it can be used in our CreateWire function
+	-- Apply it to our props so it can be used in our Create Wire function
 	if props and props.Attributes and typeof(props.Attributes) == "table" then
 		props.Attributes.ID = ID
 	elseif props then

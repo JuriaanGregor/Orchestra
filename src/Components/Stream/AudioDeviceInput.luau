@@ -57,6 +57,7 @@ function AudioDeviceInput.new(parent: Instance, props: { [string]: any }?): Type
 
 	-- Create a new Audio Device input
 	local self = {}
+	self.Type = "Stream"
 	self.ClassName = "AudioDeviceInput"
 
 	-- Create our Trove

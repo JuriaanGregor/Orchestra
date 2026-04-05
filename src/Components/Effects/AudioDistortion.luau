@@ -47,6 +47,7 @@ function AudioDistortion.new(parent: Instance, props: { [string]: any }?)
 
 	-- Create a new AudioDistortion
 	local self = {}
+	self.Type = "Effects"
 	self.ClassName = "AudioDistortion"
 
 	-- Create our Trove

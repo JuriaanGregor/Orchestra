@@ -24,11 +24,11 @@ type AudioRoute = {
 
 export type AudioRoutingPin = {
 	Instance: Types.AudioMembers,
-	PinType: "Input" | "Output" | "Sidechain",
-	Pin: string?,
+	PinType: string,
+	Pin: Enums.EnumItem
 }
 
-local function CreateWire(from: AudioRoutingPin, to: AudioRoutingPin): Wire
+local function CreateWire(from: AudioRoutingPin, to: AudioRoutingPin): Types.AUWire
 	assert(Types.tAudioMembers(from.Instance.ClassName), "From instance must be an AudioMember")
 	assert(Types.tAudioMembers(to.Instance.ClassName), "To instance must be an AudioMember")
 
@@ -40,9 +40,9 @@ local function CreateWire(from: AudioRoutingPin, to: AudioRoutingPin): Wire
 		Name = string.format(
 			"%s:%s -> %s:%s",
 			from.Instance.Name,
-			from.Pin or "Default",
+			(typeof(from.Pin) == "string" and from.Pin) or from.PinType.Name,
 			to.Instance.Name,
-			to.Pin or "Default"
+			(typeof(to.Pin) == "string" and to.Pin) or to.PinType.Name
 		),
 		Attributes = {
 			ID = HttpService:GenerateGUID(false),
@@ -180,8 +180,8 @@ function AudioRouting:WireTo(to: Types.AudioMembers, toPin: string?)
 	end
 
 	local wire = CreateWire(
-		{ Instance = self.AudioMember, PinType = Enums.Pin.Output.Name, Pin = nil },
-		{ Instance = to, PinType = Enums.Pin.Input.Name, Pin = typeof(toPin) == "string" and toPin or nil }
+		{ Instance = self.AudioMember, PinType = Enums.Pin.Output, Pin = nil },
+		{ Instance = to, PinType = Enums.Pin.Input, Pin = typeof(toPin) == "string" and toPin or nil }
 	)
 
 	self._trove:Add(wire)
@@ -212,7 +212,7 @@ function AudioRouting:WireFrom(from: Types.AudioMembers, fromPin: string?)
 
 	local wire = CreateWire(
 		{ Instance = from, PinType = Enums.Pin.Output, Pin = typeof(fromPin) == "string" and fromPin or nil },
-		{ Instance = self.AudioMember, PinType = Enums.Pin.Input, Pin = typeof(fromPin) == "string" and fromPin or nil }
+		{ Instance = self.AudioMember, PinType = Enums.Pin.Input, Pin = nil }
 	)
 
 	self._trove:Add(wire)

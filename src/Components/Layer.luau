@@ -40,6 +40,7 @@ function AudioLayer.new(inputType: Enums.EnumItem, parent: Instance, props: { [s
 
 	-- Create a new AudioLayer
 	local self = {}
+	self.Type = "Base"
 	self.ClassName = "AudioLayer"
 
 	-- Create our Trove

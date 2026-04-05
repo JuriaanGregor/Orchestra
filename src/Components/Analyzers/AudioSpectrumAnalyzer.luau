@@ -47,6 +47,7 @@ function AudioSpectrumAnalyzer.new(parent: Instance, props: { [string]: any }?):
 
 	-- Create a new AudioSpectrumAnalyzer
 	local self = {}
+	self.Type = "Analyzer"
 	self.ClassName = "AudioSpectrumAnalyzer"
 
 	-- Create our Trove

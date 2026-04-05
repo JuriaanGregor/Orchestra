@@ -53,6 +53,7 @@ function AudioDeviceOutput.new(parent: Instance, props: { [string]: any }?): Typ
 
 	-- Create a new AudioDeviceOutput
 	local self = {}
+	self.Type = "Output"
 	self.ClassName = "AudioDeviceOutput"
 
 	-- Create our Trove

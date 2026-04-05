@@ -63,6 +63,7 @@ function AudioFader.new(parent: Instance, props: { [string]: any }?): Types.AUFa
 
 	-- Create a new Audio Fader
 	local self = {}
+	self.Type = "Base"
 	self.ClassName = "AudioFader"
 
 	-- Create our Trove

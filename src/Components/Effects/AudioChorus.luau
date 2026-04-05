@@ -46,6 +46,7 @@ function AudioChorus.new(parent: Instance, props: { [string]: any }?)
 	assert(tAudioChorus(parent, props))
 	-- Create a new AudioChorus
 	local self = {}
+	self.Type = "Effects"
 	self.ClassName = "AudioChorus"
 
 	-- Create our Trove

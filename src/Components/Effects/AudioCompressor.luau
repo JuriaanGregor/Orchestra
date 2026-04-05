@@ -49,6 +49,7 @@ function AudioCompressor.new(parent: Instance, props: { [string]: any }?)
 
 	-- Create a new AudioCompressor
 	local self = {}
+	self.Type = "Effects"
 	self.ClassName = "AudioCompressor"
 
 	-- Create our Trove

@@ -47,6 +47,7 @@ function AudioEcho.new(parent: Instance, props: { [string]: any }?)
 
 	-- Create a new AudioEcho
 	local self = {}
+	self.Type = "Effects"
 	self.ClassName = "AudioEcho"
 
 	-- Create our Trove
