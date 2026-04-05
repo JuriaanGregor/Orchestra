@@ -6,6 +6,7 @@ local HttpService = game:GetService("HttpService")
 
 -- Import > Packages
 local Package = ReplicatedStorage:WaitForChild("Audio")
+local applyInstanceProps = require("../Instances/applyInstanceProps")
 local t = require(Package.Packages.t)
 local Trove = require(Package.Packages.Trove)
 local Signal = require(Package.Packages.Signal)
@@ -32,29 +33,10 @@ local tAudioMember = t.valueOf(audioMembers)
 local function CreateWire(parent: Instance, props: { [string]: any }): Wire
 	assert(tCreateWire(parent, props and props.Input, props and props.Output))
 
-	if typeof(props.Input) == "Instance" then
-		assert(tAudioMember(props.Input.ClassName))
-	elseif typeof(props.Input) ~= "nil" then
-		error("Input must be an Instance or nil")
-	end
-
-	if typeof(props.Output) == "Instance" then
-		assert(tAudioMember(props.Output.ClassName))
-	elseif typeof(props.Output) ~= "nil" then
-		error("Output must be an Instance or nil")
-	end
-
 	local Wire = Instance.new("Wire")
-	Wire.Name = "AudioWire"
 	Wire.Parent = parent
 
-	if props.Input then
-		Wire.SourceInstance = props.Input
-	end
-
-	if props.Output then
-		Wire.TargetInstance = props.Output
-	end
+	applyInstanceProps(Wire, props and props or {})
 
 	return Wire
 end
@@ -83,12 +65,12 @@ function AudioWire.new(parent: Instance, props: { [string]: any }?): Types.AUWir
 	self.ClassName = "AudioWire"
 
 	if props then
-		if props.Input then
-			assert(tAudioMember(props.Input.ClassName))
+		if props.SourceInstance then
+			assert(tAudioMember(props.SourceInstance.ClassName))
 		end
 
-		if props.Output then
-			assert(tAudioMember(props.Output.ClassName))
+		if props.TargetInstance then
+			assert(tAudioMember(props.TargetInstance.ClassName))
 		end
 	end
 
