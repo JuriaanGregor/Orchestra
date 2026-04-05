@@ -47,6 +47,7 @@ function AudioGate.new(parent: Instance, props: { [string]: any }?)
 
 	-- Create a new AudioGate
 	local self = {}
+	self.Type = "Transform"
 	self.ClassName = "AudioGate"
 
 	-- Create our Trove

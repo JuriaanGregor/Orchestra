@@ -24,7 +24,6 @@ local AUDIO_EFFECTS: { [string]: any } = {
 	[Enums.Effect.Flanger.Name] = require(script.AudioFlanger),
 	[Enums.Effect.PitchShifter.Name] = require(script.AudioPitchShifter),
 	[Enums.Effect.Tremolo.Name] = require(script.AudioTremolo),
-	[Enums.Effect.Gate.Name] = require(script.AudioGate),
 }
 
 -- Functions
