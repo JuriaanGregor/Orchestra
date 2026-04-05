@@ -22,6 +22,8 @@ local Enums = {
 	Transform = EnumList.new("Transform", {
 		"ChannelMixer",
 		"ChannelSplitter",
+		"Limiter",
+		"Gate",
 	}),
 	Pin = EnumList.new("Pin", {
 		"Input",
@@ -61,6 +63,8 @@ local Enums = {
 		"AudioPitchShifter",
 		"AudioReverb",
 		"AudioTremolo",
+		"AudioChannelSplitter",
+		"AudioChannelMixer",
 	}),
 } :: { [string]: EnumList }
 

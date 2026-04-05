@@ -94,17 +94,30 @@ function Orchestra:Start()
 	-- Create a new Default part with a SoundId in it..
 	local audioPart = Instance.new("Part")
 	audioPart.Name = "AudioEngine"
-	audioPart.Size = Vector3.new(1, 1, 1)
+	audioPart.Position = Vector3.new(0, 4, 0)
+	audioPart.Size = Vector3.new(4, 4, 4)
 	audioPart.Transparency = 1
 	audioPart.Anchored = true
 	audioPart.CanCollide = false
 	audioPart.Parent = workspace
 
-	-- Create a new Emitter
-	local emitter = self._trove:Construct(self.Output, Enums.Output.Emitter, audioPart, {
-		AudioInteractionGroup = "Music",
-		Name = "DefaultEmitter",
-	})
+	local audioPartL = Instance.new("Part")
+	audioPartL.Name = "AudioEngineL"
+	audioPartL.Position = Vector3.new(-10, 4, 0)
+	audioPartL.Size = Vector3.new(4, 4, 4)
+	audioPartL.Transparency = 0
+	audioPartL.Anchored = true
+	audioPartL.CanCollide = false
+	audioPartL.Parent = workspace
+
+	local audioPartR = Instance.new("Part")
+	audioPartR.Name = "AudioEngineR"
+	audioPartR.Position = Vector3.new(10, 4, 0)
+	audioPartR.Size = Vector3.new(4, 4, 4)
+	audioPartR.Transparency = 0
+	audioPartR.Anchored = true
+	audioPartR.CanCollide = false
+	audioPartR.Parent = workspace
 
 	-- Create a new AudioLayer
 	local audioLayer = self._trove:Construct(self.Layer, Enums.Stream.Player, audioPart, {
@@ -113,21 +126,42 @@ function Orchestra:Start()
 	})
 
 	-- Add a AudioEffect to the Emitter
-	local audioEffect = self._trove:Construct(self.Effects, Enums.Effect.Equalizer, emitter.Instance, {
+	local audioEffect = self._trove:Construct(self.Effects, Enums.Effect.Equalizer, audioLayer.Instance, {
 		Name = "DefaultEqualizer",
 	})
 
-	-- Add an Analyzer to the Emitter
-	local audioAnalyzer = self._trove:Construct(self.Analyzers, Enums.Analyzer.Spectrum, emitter.Instance, {
-		Name = "DefaultSpectrumAnalyzer",
-	})
+	-- Create a channel transform
+	local audioTransform =
+		self._trove:Construct(self.Transforms, Enums.Transform.ChannelSplitter, audioLayer.Instance, {
+			Name = "ChannelSplitter",
+			Layout = Enum.AudioChannelLayout.Stereo,
+		})
 
-	-- Wire the Emitter to the Analyzer
-	audioLayer.Routing:WireTo(audioAnalyzer.In)
+	audioEffect.Routing:WireTo(audioTransform.In)
 
 	-- Wire the AudioLayer to the Emitter through the AudioEffect
 	audioLayer.Routing:WireTo(audioEffect.In)
-	audioEffect.Routing:WireTo(emitter.In)
+
+	-- Create a new Emitter
+	local emitterL = self._trove:Construct(self.Output, Enums.Output.Emitter, audioPartL, {
+		AudioInteractionGroup = "Music",
+		Name = "EmitterL",
+	})
+
+	local emitterR = self._trove:Construct(self.Output, Enums.Output.Emitter, audioPartR, {
+		AudioInteractionGroup = "Music",
+		Name = "EmitterR",
+	})
+
+	audioTransform.Routing:Wire(
+		{ Instance = audioTransform.Instance, PinType = Enums.Pin.Output, Pin = "Left" },
+		{ Instance = emitterL.Instance, PinType = Enums.Pin.Input }
+	)
+
+	audioTransform.Routing:Wire(
+		{ Instance = audioTransform.Instance, PinType = Enums.Pin.Output, Pin = "Right" },
+		{ Instance = emitterR.Instance, PinType = Enums.Pin.Input }
+	)
 
 	-- Play the Stream connected to the AudioLayer
 	audioLayer.Stream:Play()
