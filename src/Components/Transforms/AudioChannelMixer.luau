@@ -16,21 +16,12 @@ local applyInstanceProps = require(Package.Instances.applyInstanceProps)
 local Routing = require(Package.Components.Routing)
 
 -- Functions
-local tAudioChannelMixer = t.tuple(t.Enum, t.Instance, t.optional(t.map(t.string, t.any)))
-local function CreateAudioMixer(
-	channelLayout: Enum.AudioChannelLayout,
-	parent: Instance,
-	props: { [string]: any }?
-): AudioChannelMixer
-	assert(tAudioChannelMixer(channelLayout, parent, props))
+local tAudioChannelMixer = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
+local function CreateAudioMixer(parent: Instance, props: { [string]: any }?): AudioChannelMixer
+	assert(tAudioChannelMixer(parent, props))
 
 	local audioChannelMixer = Instance.new("AudioChannelMixer")
 	audioChannelMixer.Parent = parent
-	audioChannelMixer.Layout = channelLayout
-
-	if not props then
-		return audioChannelMixer
-	end
 
 	-- Apply properties
 	applyInstanceProps(audioChannelMixer, props and props or {})
@@ -54,22 +45,19 @@ AudioChannelMixer.__index = AudioChannelMixer
 	Creates a new AudioChannelMixer.
 ]=]
 
-function AudioChannelMixer.new(
-	channelLayout: Enum.AudioChannelLayout,
-	parent: Instance,
-	props: { [string]: any }?
-): Types.AUChannelMixer
-	assert(tAudioChannelMixer(channelLayout, parent, props))
+function AudioChannelMixer.new(parent: Instance, props: { [string]: any }?): Types.AUChannelMixer
+	assert(tAudioChannelMixer(parent, props))
 
 	-- Create a new AudioChannelMixer
 	local self = {}
+	self.Tyhpe = "Transform"
 	self.ClassName = "AudioChannelMixer"
 
 	-- Create our Trove
 	self._trove = Trove.new()
 
 	-- Create our AudioChannelMixer Instance
-	self.Instance = CreateAudioMixer(channelLayout, parent, props)
+	self.Instance = CreateAudioMixer(parent, props)
 
 	-- Create our routing
 	self.Routing = Routing.new(self.Instance)

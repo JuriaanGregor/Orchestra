@@ -68,6 +68,7 @@ function AudioLayer.new(inputType: Enums.EnumItem, parent: Instance, props: { [s
 	-- Expose our members
 	self.Routing = self.Fader.Routing
 	self.Out = self.Fader.Out
+	self.Instance = layerFolder
 
 	-- Attach to Trove
 	self._trove:AttachToInstance(layerFolder)

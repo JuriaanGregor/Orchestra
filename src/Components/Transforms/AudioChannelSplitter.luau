@@ -16,21 +16,12 @@ local applyInstanceProps = require(Package.Instances.applyInstanceProps)
 local Routing = require(Package.Components.Routing)
 
 -- Functions
-local tAudioChannelSplitter = t.tuple(t.Enum, t.Instance, t.optional(t.map(t.string, t.any)))
-local function CreateChannelSplitter(
-	channelLayout: Enum.AudioChannelLayout,
-	parent: Instance,
-	props: { [string]: any }?
-): AudioChannelSplitter
-	assert(tAudioChannelSplitter(channelLayout, parent, props))
+local tAudioChannelSplitter = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
+local function CreateChannelSplitter(parent: Instance, props: { [string]: any }?): AudioChannelSplitter
+	assert(tAudioChannelSplitter(parent, props))
 
 	local audioChannelSplitter = Instance.new("AudioChannelSplitter")
 	audioChannelSplitter.Parent = parent
-	audioChannelSplitter.Layout = channelLayout
-
-	if not props then
-		return audioChannelSplitter
-	end
 
 	-- Apply properties
 	applyInstanceProps(audioChannelSplitter, props and props or {})
@@ -54,12 +45,8 @@ AudioChannelSplitter.__index = AudioChannelSplitter
 	Creates a new AudioChannelSplitter.
 ]=]
 
-function AudioChannelSplitter.new(
-	channelLayout: Enum.AudioChannelLayout,
-	parent: Instance,
-	props: { [string]: any }?
-): Types.AUChannelSplitter
-	assert(tAudioChannelSplitter(channelLayout, parent, props))
+function AudioChannelSplitter.new(parent: Instance, props: { [string]: any }?): Types.AUChannelSplitter
+	assert(tAudioChannelSplitter(parent, props))
 
 	-- Create a new AudioChannelSplitter
 	local self = {}
@@ -69,7 +56,7 @@ function AudioChannelSplitter.new(
 	self._trove = Trove.new()
 
 	-- Create our AudioChannelSplitter Instance
-	self.Instance = CreateChannelSplitter(channelLayout, parent, props)
+	self.Instance = CreateChannelSplitter(parent, props)
 
 	-- Create our routing
 	self.Routing = Routing.new(self.Instance)
