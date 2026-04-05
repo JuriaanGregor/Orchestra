@@ -2,8 +2,6 @@
 --!nolint LocalUnused
 --!nolint LocalShadow
 
-local RunService = game:GetService("RunService")
-
 --[[
     Applies properties to an instance
 ]]
@@ -125,76 +123,6 @@ local function applyInstanceProps(applyTo: Instance, props: { [string]: any })
 						2
 					)
 				end
-			elseif propIndex == "Asset" or propIndex == "Content" or propIndex == "AssetId" then
-				if typeof(propValue) == "string" then
-					local assetId = tonumber(propValue)
-					if typeof(assetId) == "number" then
-						propValue = assetId
-					else
-						if string.match(propValue, "^rbxassetid://") then
-							propValue = propValue
-
-						-- Check or the path starts with rbxasset://
-						elseif string.match(propValue, "^rbxasset://") then
-							-- RbxAsset paths are only supported in Studio, so we error if we are not in Studio
-							if not RunService:IsStudio() then
-								error(
-									string.format(
-										"[applyInstanceProps] - Invalid asset path format for %s. Asset paths starting with 'rbxasset://' are only supported in Studio, got %s.",
-										tostring(applyTo.ClassName),
-										tostring(propValue)
-									),
-									2
-								)
-							end
-
-							-- Check or the path ends with a file extension and check or that file extension is .wav, .mp3, .ogg
-							local ALLOWED_EXTENSIONS = { ".wav", ".mp3", ".ogg" }
-							local hasAllowedExtension = false
-							for _, ext in ALLOWED_EXTENSIONS do
-								if string.match(propValue, ext .. "$") then
-									hasAllowedExtension = true
-									break
-								end
-							end
-
-							if not hasAllowedExtension then
-								error(
-									string.format(
-										"[applyInstanceProps] - Invalid asset path format for %s. Expected a path starting with 'rbxasset://' and ending with .wav, .mp3, .ogg, got %s.",
-										tostring(applyTo.ClassName),
-										tostring(propValue)
-									),
-									2
-								)
-							end
-						else
-							error(
-								string.format(
-									"[applyInstanceProps] - Invalid asset format for %s. Expected a string in the format 'rbxassetid://123456', 'rbxasset://path/to/asset.mp3', got %s.",
-									tostring(applyTo.ClassName),
-									tostring(typeof(propValue))
-								),
-								2
-							)
-						end
-					end
-				elseif typeof(propValue) == "Instance" then
-					if propValue:IsA("Sound") then
-						propValue = propValue.SoundId
-					else
-						error(
-							string.format(
-								"[applyInstanceProps] - Invalid Instance type for asset on %s. Expected Sound, got %s.",
-								tostring(applyTo.ClassName),
-								tostring(propValue.ClassName)
-							),
-							2
-						)
-					end
-				end
-
-				setProperty(applyTo, propIndex, propValue)
 			else
 				-- Set the property on the instance
 				setProperty(applyTo, propIndex, propValue)

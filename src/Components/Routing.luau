@@ -1,13 +1,11 @@
 --!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CollectionService = game:GetService("CollectionService")
+local HttpService = game:GetService("HttpService")
 
 -- Import > Packages
 local Package = ReplicatedStorage:WaitForChild("Audio")
 local t = require(Package.Packages.t)
 local Trove = require(Package.Packages.Trove)
-local Signal = require(Package.Packages.Signal)
-local TableUtil = require(Package.Packages.TableUtil)
 
 -- Import > Components
 local Wire = require(Package.Components.Wire)
@@ -22,6 +20,7 @@ local Enums = require(Package.Enums)
 local AudioRouting = {}
 AudioRouting.__index = AudioRouting
 
+local tAudioRouting = t.tuple(t.Instance, t.optional(t.array(t.table)))
 --[=[
 	@class AudioRouting 
 	@tag Base
@@ -29,234 +28,98 @@ AudioRouting.__index = AudioRouting
 	Represents an AudioRouting, which is used to route audio from one instance to another.
 ]=]
 
-local tAudioRouting = t.tuple(t.Instance, t.array(t.table))
---[=[
-	Creates a new AudioRouting
-]=]
-function AudioRouting.new(parent: Instance, pins: { Enums.EnumItem }): Types.AURouting
+function AudioRouting.new(parent: Instance, pins: { Enums.EnumItem }?): Types.AURouting
 	assert(tAudioRouting(parent, pins))
 
-	-- Create a new AudioRouting
 	local self = {}
 	self.ClassName = "AudioRouting"
 
 	-- Create our Trove
 	self._trove = Trove.new()
 
-	-- Store our pins and routing
-	self.Pins = {}
-	self.Routing = {}
+	-- Create our Routing container
+	local AudioRouter = self._trove:Construct(Instance, "Folder")
+	AudioRouter.Name = "AudioRouter"
+	AudioRouter.Parent = parent
+	AudioRouter:AddTag("AudioRouter")
+	AudioRouter:SetAttribute("ID", HttpService:GenerateGUID(false))
 
-	-- Create our Changed signal
-	self.Changed = self._trove:Construct(Signal)
+	self.AudioRouter = AudioRouter
 
-	-- Create a new Folder for our AudioRouting
-	local AudioRoute = Instance.new("Folder")
-	AudioRoute.Name = "AudioRouting"
-	AudioRoute.Parent = parent
-	self._trove:Add(AudioRoute)
+	local validPins = {}
+	-- Let's figure out, if we have a valid AudioMember, if so, we will automatically figure out the pins for this member, if not, we will just use the pins that were provided to us
+	if Types.tAudioMembers(parent.ClassName) then
+		-- Mark our self as an AudioMember
+		self.IsAudioMember = true
+		self.AudioMember = parent :: Types.AudioMembers
 
-	-- Set up our routing
-	for _, pin in pins do
-		self.Routing[pin.Name] = {}
+		parent = parent :: Types.AudioMembers
+
+		-- We have a valid AudioMember, let's figure out the pins for this member
+		local inputPins = parent:GetInputPins()
+		local outputPins = parent:GetOutputPins()
+
+		if inputPins and #inputPins > 0 then
+			validPins[Enums.Pin.Input.Name] = {}
+			for _, pin in inputPins do
+				table.insert(validPins[Enums.Pin.Input.Name], pin)
+			end
+		end
+
+		if outputPins and #outputPins > 0 then
+			validPins[Enums.Pin.Output.Name] = {}
+			for _, pin in outputPins do
+				table.insert(validPins[Enums.Pin.Output.Name], pin)
+			end
+		end
+
+		-- TODO: We need to add support for AudioCompressor, which has a Sidechain pin, which is neither an input nor an output pin, it's a special pin that can only be wired to an output pin, we need to figure out how to handle this case
+		if parent.ClassName == "AudioCompressor" then
+			validPins[Enums.Pin.Sidechain.Name] = {}
+		end
+	elseif pins then
+		for _, pin in pins do
+			validPins[pin.Name] = {}
+		end
+	else
+		print(parent.ClassName)
+		print(Types.tAudioMembers(parent))
+		print(pins)
+
+		error("AudioRouting requires either a valid AudioMember or an array of pins to function properly")
 	end
 
-	-- Expose our members
-	self.Instance = AudioRoute :: Folder
-	self._baseInstance = parent :: Types.AudioMembers
+	self.Pins = validPins
 
-	-- Attach our Trove to the AudioRouting Folder
-	self._trove:AttachToInstance(self.Instance)
-
-	-- Return our AudioRouting
 	return setmetatable(self :: any, AudioRouting) :: Types.AURouting
 end
 
-function AudioRouting:__tostring()
-	local elements = {
-		[Enums.Pin.Input.Name] = nil,
-		[Enums.Pin.Output.Name] = nil,
-		[Enums.Pin.Sidechain.Name] = nil,
-	}
-
-	for _, pin in self.Pins do
-		elements[pin] = self.Routing[pin]
-	end
-
-	return string.format(
-		"AudioRouting \n Input: %s \n Output: %s \n Sidechain: %s",
-		elements[Enums.Pin.Input.Name]
-				and (#elements[Enums.Pin.Input.Name] > 0 and "Pins are connected" or "No pins connected")
-			or "Pin does not exist",
-		elements[Enums.Pin.Output.Name]
-				and (#elements[Enums.Pin.Output.Name] > 0 and "Pins are connected" or "No pins connected")
-			or "Pin does not exist",
-		elements[Enums.Pin.Sidechain.Name]
-				and (#elements[Enums.Pin.Sidechain.Name] > 0 and "Pins are connected" or "No pins connected")
-			or "Pin does not exist"
-	)
-end
-
-local tIsPin = t.tuple(t.table)
---[=[
-	Checks if a pin exists in the AudioRouting
-]=]
-function AudioRouting:IsPin(pin: Enums.EnumItem): boolean
-	assert(tIsPin(pin))
-
-	if not self.Routing[pin.Name] then
-		return false
-	end
-
-	return true
-end
-
-local tGetWiresAtPin = t.tuple(t.string)
---[=[
-	Get all the wires that are connected to a pin
-]=]
-function AudioRouting:GetWiresAtPin(pin: Types.AudioPin): { Types.AUWire }
-	assert(tGetWiresAtPin(pin))
-	assert(self:IsPin(pin), "Pin does not exist in this AudioRouting")
-
-	return self.Routing[pin]
-end
-
-local tAddWire = t.tuple(t.table, t.table)
---[=[
-	Adds a wire to the AudioRouting
-]=]
-function AudioRouting:AddWire(pin: Enums.EnumItem, wire: Types.AUWire)
-	assert(tAddWire(pin, wire))
-	assert(self:IsPin(pin), "Pin does not exist in this AudioRouting")
-
-	-- Add the wire to the routing
-	local pinRouting = self.Routing[pin.Name]
-
-	-- Go thru the routing and check if the wire is already there
-	local filteredWires = TableUtil.Filter(pinRouting, function(value)
-		return value.ID == wire.ID
-	end)
-
-	-- If the wire is already in the routing, then we don't need to add it
-	if #filteredWires > 0 then
-		return
-	end
-
-	table.insert(pinRouting, wire)
-end
-
-local tClearPin = t.tuple(t.string)
---[=[
-	Disconnects all the wires that are connected to a pin
-]=]
-function AudioRouting:ClearPin(pin: Types.AudioPin)
-	assert(tClearPin(pin))
-	assert(self:IsPin(pin), "Pin does not exist in this AudioRouting")
-
-	-- Make a snapshot of the old record
-	local _oldRecord = self.Routing
-
-	-- Clear the pin
-	self.Routing[pin] = {}
-end
-
-local tGetPinsFromInstance = t.tuple(t.Instance)
---[=[
-	Gets all the wires that are connected to a specific instance
-]=]
-function AudioRouting:GetPinsFromInstance(instance: Instance): { [Types.AudioPin]: { Wire } }
-	assert(tGetPinsFromInstance(instance))
-
-	local result = {}
-	local pinMap = {} :: { [string]: boolean }
-
-	for _, currentPin in self.Pins do
-		result[currentPin] = {}
-		pinMap[currentPin] = true
-	end
-
-	-- Go thru all the Wires
-	local Wires = CollectionService:GetTagged("AudioWire")
-	for _, wire in Wires :: { Wire } do
-		-- Based on the SourceInstance and TargetInstance we can now populate the list
-		if pinMap.Input then
-			if wire.SourceInstance then
-				if wire.SourceInstance == instance then
-					table.insert(result.Input, wire)
-				end
-			end
-		end
-
-		if pinMap.Output then
-			if wire.TargetInstance then
-				if wire.TargetInstance == instance then
-					table.insert(result.Output, wire)
-				end
-			end
-		end
-	end
-
-	return result
-end
-
-local tWireTo = t.tuple(t.Instance)
---[=[
-	Wires the base instance to another instance
-]=]
 function AudioRouting:WireTo(to: Types.AudioMembers)
-	assert(tWireTo(to))
-	self:Wire(self._baseInstance, to)
-end
-
-local tWire = t.tuple(t.Instance, t.Instance)
---[=[
-	Creates a new Wire and adds it to the AudioRouting
-]=]
-function AudioRouting:Wire(from: Types.AudioMembers, to: Types.AudioMembers)
-	assert(tWire(from, to))
-
-	local hasInputPin = self:IsPin(Enums.Pin.Input)
-	local hasOutputPin = self:IsPin(Enums.Pin.Output)
-
-	if not hasInputPin then
-		if to == self._baseInstance then
-			error(
-				string.format(
-					"<AudioRouting> Cannot wire %s to the base instance, as it does not have an input pin",
-					from.Name :: string
-				),
-				2
-			)
-		end
+	if not self.AudioMember then
+		error("Only AudioMembers can be wired to other AudioMembers, this routing is not an AudioMember")
 	end
 
-	if not hasOutputPin then
-		if from == self._baseInstance then
-			error(
-				string.format(
-					"<AudioRouting> Cannot wire %s to the base instance, as it does not have an output pin",
-					to.Name :: string
-				),
-				2
-			)
-		end
+	-- Let's make sure that we have an Output pin to wire from
+	if not self.Pins[Enums.Pin.Output.Name] then
+		error("This AudioRouting does not have an Output pin to wire from")
 	end
 
-	-- Create a new Wire
-	local wire = self._trove:Construct(Wire, self.Instance, {
-		Input = from,
+	-- Let's make sure that the target has an Input pin to wire to
+	local targetPins = to:GetInputPins()
+	if not targetPins or #targetPins == 0 then
+		error("The target AudioMember does not have any Input pins to wire to")
+	end
+
+	-- Let's create a new Wire!
+	self._trove:Construct(Wire, self.AudioRouter, {
+		Input = self.AudioMember,
 		Output = to,
+		Attributes = {
+			AudioRouterId = self.AudioRouter:GetAttribute("ID") or "Unknown",
+		},
 	})
-
-	-- Add the wire to the AudioRouting
-	local direction = to == self._baseInstance and Enums.Pin.Input or Enums.Pin.Output
-	self:AddWire(direction, wire)
 end
 
---[=[
-	Destroys the AudioRouting
-]=]
 function AudioRouting:Destroy()
 	self._trove:Destroy()
 end

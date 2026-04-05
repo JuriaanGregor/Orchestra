@@ -9,8 +9,11 @@ local t = require(Package.Packages.t)
 local Trove = require(Package.Packages.Trove)
 
 -- Imports > Package
-local Types = require(Package.Types)
 local applyInstanceProps = require(Package.Instances.applyInstanceProps)
+local Routing = require(Package.Components.Routing)
+
+-- Types
+local Types = require(Package.Types)
 
 -- Functions
 local function CreateDeviceInput(parent: Instance, props: { [string]: any }?): AudioDeviceInput
@@ -61,6 +64,9 @@ function AudioDeviceInput.new(parent: Instance, props: { [string]: any }?): Type
 
 	-- Create our Audio Device Input Instance
 	self.Instance = CreateDeviceInput(parent, props)
+
+	-- Create our routing
+	self.Routing = Routing.new(self.Instance)
 
 	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)

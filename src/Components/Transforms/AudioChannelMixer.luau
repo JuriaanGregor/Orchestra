@@ -8,9 +8,12 @@ local Package = ReplicatedStorage:WaitForChild("Audio")
 local t = require(Package.Packages.t)
 local Trove = require(Package.Packages.Trove)
 
--- Imports > Package
+-- Types
 local Types = require(Package.Types)
+
+-- Imports > Package
 local applyInstanceProps = require(Package.Instances.applyInstanceProps)
+local Routing = require(Package.Components.Routing)
 
 -- Functions
 local tAudioChannelMixer = t.tuple(t.Enum, t.Instance, t.optional(t.map(t.string, t.any)))
@@ -67,6 +70,9 @@ function AudioChannelMixer.new(
 
 	-- Create our AudioChannelMixer Instance
 	self.Instance = CreateAudioMixer(channelLayout, parent, props)
+
+	-- Create our routing
+	self.Routing = Routing.new(self.Instance)
 
 	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)

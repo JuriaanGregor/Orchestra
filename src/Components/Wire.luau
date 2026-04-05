@@ -10,24 +10,38 @@ local t = require(Package.Packages.t)
 local Trove = require(Package.Packages.Trove)
 local Signal = require(Package.Packages.Signal)
 
--- Import > Package
+-- Types
 local Types = require(Package.Types)
+
+-- Enums
+local Enums = require(Package.Enums)
 
 -- Variables
 local WIRES = {}
 
 -- Functions
 local tCreateWire = t.tuple(t.Instance, t.optional(t.Instance), t.optional(t.Instance))
-local tAudioMember = t.valueOf(Types.AudioChildren)
+
+local audioMembers = {}
+for _, item in ipairs(Enums.AudioMembers:GetEnumItems()) do
+	table.insert(audioMembers, item.Name)
+end
+
+local tAudioMember = t.valueOf(audioMembers)
+
 local function CreateWire(parent: Instance, props: { [string]: any }): Wire
 	assert(tCreateWire(parent, props and props.Input, props and props.Output))
 
-	if props.Input then
+	if typeof(props.Input) == "Instance" then
 		assert(tAudioMember(props.Input.ClassName))
+	elseif typeof(props.Input) ~= "nil" then
+		error("Input must be an Instance or nil")
 	end
 
-	if props.Output then
+	if typeof(props.Output) == "Instance" then
 		assert(tAudioMember(props.Output.ClassName))
+	elseif typeof(props.Output) ~= "nil" then
+		error("Output must be an Instance or nil")
 	end
 
 	local Wire = Instance.new("Wire")
@@ -69,7 +83,7 @@ function AudioWire.new(parent: Instance, props: { [string]: any }?): Types.AUWir
 	self.ClassName = "AudioWire"
 
 	if props then
-		if not props.Input then
+		if props.Input then
 			assert(tAudioMember(props.Input.ClassName))
 		end
 

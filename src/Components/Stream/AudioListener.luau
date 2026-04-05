@@ -10,6 +10,7 @@ local Trove = require(Package.Packages.Trove)
 
 -- Import > Package
 local applyInstanceProps = require(Package.Instances.applyInstanceProps)
+local Routing = require(Package.Components.Routing)
 
 -- Types
 local Types = require(Package.Types)
@@ -50,10 +51,14 @@ function AudioListener.new(parent: Instance, props: { [string]: any }?): Types.A
 	-- Create our AudioListener Instance
 	self.Instance = CreateListener(parent, props)
 
+	-- Create our routing
+	self.Routing = Routing.new(self.Instance)
+
+	-- Expose our members
+	self.Out = self.Instance
+
 	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)
-
-	self.Out = self.Instance
 
 	return setmetatable(self :: any, AudioListener) :: Types.AUListener
 end

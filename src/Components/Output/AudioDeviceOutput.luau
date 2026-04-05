@@ -8,11 +8,12 @@ local Package = ReplicatedStorage:WaitForChild("Audio")
 local t = require(Package.Packages.t)
 local Trove = require(Package.Packages.Trove)
 
--- Import > Package
-local applyInstanceProps = require(Package.Instances.applyInstanceProps)
-
 -- Types
 local Types = require(Package.Types)
+
+-- Import > Package
+local applyInstanceProps = require(Package.Instances.applyInstanceProps)
+local Routing = require(Package.Components.Routing)
 
 -- Functions
 local function CreateDeviceOutput(parent: Instance, props: { [string]: any }?): AudioDeviceOutput
@@ -59,6 +60,9 @@ function AudioDeviceOutput.new(parent: Instance, props: { [string]: any }?): Typ
 
 	-- Create our AudioDeviceOutput Instance
 	self.Instance = CreateDeviceOutput(parent, props)
+
+	-- Create our routing
+	self.Routing = Routing.new(self.Instance)
 
 	-- Expose our members
 	self.In = self.Instance

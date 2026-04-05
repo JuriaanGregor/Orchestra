@@ -10,6 +10,7 @@ local Trove = require(Package.Packages.Trove)
 
 -- Imports > Package
 local applyInstanceProps = require(Package.Instances.applyInstanceProps)
+local Routing = require(Package.Components.Routing)
 
 -- Functions
 local tAudioChorus = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
@@ -52,6 +53,9 @@ function AudioChorus.new(parent: Instance, props: { [string]: any }?)
 
 	-- Create our AudioChorus Instance
 	self.Instance = CreateChorus(parent, props)
+
+	-- Routing
+	self.Routing = Routing.new(self.Instance)
 
 	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)

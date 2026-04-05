@@ -11,7 +11,12 @@ local Trove = require(Package.Packages.Trove)
 -- Import > Package
 local Stream = require(Package.Components.Stream)
 local Fader = require(Package.Components.Fader)
+
+-- Types
 local Types = require(Package.Types)
+
+-- Enums
+local Enums = require(Package.Enums)
 
 ---------------------------------------------------------------------
 local AudioLayer = {}
@@ -25,13 +30,13 @@ AudioLayer.__index = AudioLayer
 	A layer is a combination of an AudioStream and an AudioFader connected together.
 ]=]
 
-local tAudioLayer = t.tuple(t.string, t.Instance, t.optional(t.map(t.string, t.any)))
+local tAudioLayer = t.tuple(Types.tAudioStream, t.Instance, t.optional(t.map(t.string, t.any)))
 
 --[=[
 	Creates a new AudioLayer object
 ]=]
-function AudioLayer.new(inputType: Types.AudioStreamType, parent: Instance, props: { [string]: any }?): Types.AULayer
-	assert(tAudioLayer(inputType, parent, props))
+function AudioLayer.new(inputType: Enums.EnumItem, parent: Instance, props: { [string]: any }?): Types.AULayer
+	assert(tAudioLayer(inputType.Name, parent, props))
 
 	-- Create a new AudioLayer
 	local self = {}
@@ -47,7 +52,7 @@ function AudioLayer.new(inputType: Types.AudioStreamType, parent: Instance, prop
 
 	-- Create our Components
 	self._components = {}
-	self._components.AudioStream = Stream.new(inputType, layerFolder, props) :: Types.AUStream
+	self._components.AudioStream = Stream.new(inputType, layerFolder, props)
 
 	-- Make sure that our Fader is named props.Name with an AudioFader suffix if props.Name exists
 	if props and typeof(props.Name) == "string" then

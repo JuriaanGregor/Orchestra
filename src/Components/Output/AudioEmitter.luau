@@ -8,11 +8,12 @@ local Package = ReplicatedStorage:WaitForChild("Audio")
 local t = require(Package.Packages.t)
 local Trove = require(Package.Packages.Trove)
 
--- Imports > Package
-local applyInstanceProps = require(Package.Instances.applyInstanceProps)
-
 -- Types
 local Types = require(Package.Types)
+
+-- Imports > Package
+local applyInstanceProps = require(Package.Instances.applyInstanceProps)
+local Routing = require(Package.Components.Routing)
 
 -- Functions
 local tAudioEmitter = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
@@ -69,6 +70,9 @@ function AudioEmitter.new(parent: Instance, props: { [string]: any }?): Types.AU
 
 	-- Create our AudioEmitter Instance
 	self.Instance = CreateAudioEmitter(parent, props)
+
+	-- Create our routing
+	self.Routing = Routing.new(self.Instance)
 
 	-- Expose our members
 	self.In = self.Instance

@@ -8,8 +8,12 @@ local Package = ReplicatedStorage:WaitForChild("Audio")
 local t = require(Package.Packages.t)
 local Trove = require(Package.Packages.Trove)
 
+-- Enums
+local Enums = require(Package.Enums)
+
 -- Imports > Package
 local applyInstanceProps = require(Package.Instances.applyInstanceProps)
+local Routing = require(Package.Components.Routing)
 
 -- Functions
 local tAudioCompressor = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
@@ -52,6 +56,9 @@ function AudioCompressor.new(parent: Instance, props: { [string]: any }?)
 
 	-- Create our AudioCompressor Instance
 	self.Instance = CreateCompressor(parent, props)
+
+	-- Create our routing
+	self.Routing = Routing.new(self.Instance, { Enums.Pin.Input, Enums.Pin.Output, Enums.Pin.Sidechain })
 
 	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)

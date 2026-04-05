@@ -5,6 +5,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Package = ReplicatedStorage:WaitForChild("Audio")
 local Trove = require(Package.Packages.Trove)
 local Signal = require(Package.Packages.Signal)
+local t = require(Package.Packages.t)
+
+-- Imports > Package
+local Enums = require(Package.Enums)
 
 -- Generic Types for our Packages
 export type Trove = typeof(Trove.new())
@@ -19,13 +23,8 @@ export type Error = {
 	context: string?,
 }
 
-export type AudioPin = "Input" | "Output" | "Sidechain"
-export type AudioStreamType = "Player" | "Input" | "Listener" | "TextToSpeech"
-export type AudioTransformType = "ChannelMixer" | "ChannelSplitter"
-export type AudioOutputType = "Device" | "Emitter"
-
 export type AudioMembers =
-	-- Sources
+	-- Streams
 	AudioPlayer
 	| AudioDeviceInput
 	| AudioListener
@@ -37,18 +36,41 @@ export type AudioMembers =
 	-- Analyzer 
 	| AudioAnalyzer
 	-- Effects
+	| AudioChorus
+	| AudioCompressor
+	| AudioDistortion
+	| AudioEcho
 	| AudioEqualizer
 	| AudioFlanger
-	| AudioReverb
+	| AudioGate
 	| AudioPitchShifter
-	| AudioChorus
+	| AudioReverb
+	| AudioTremolo
+
+export type AudioEffects =
+	AudioChorus
+	| AudioCompressor
 	| AudioDistortion
-
-export type AudioEffects = AudioEqualizer | AudioFlanger | AudioReverb | AudioPitchShifter | AudioChorus | AudioDistortion
-
+	| AudioEcho
+	| AudioEqualizer
+	| AudioFlanger
+	| AudioGate
+	| AudioPitchShifter
+	| AudioReverb
+	| AudioTremolo
 export type AudioTransforms = AudioChannelMixer | AudioChannelSplitter
-
 export type AudioAnalyzers = AudioAnalyzer
+
+local EnumValues = {} :: { [string]: any }
+
+for enumListIndex, enumList in Enums do
+	-- Create the Enum table for each EnumList
+	EnumValues[enumListIndex] = {}
+
+	for _, enumItem in enumList:GetEnumItems() do
+		table.insert(EnumValues[enumListIndex], enumItem.Name)
+	end
+end
 
 type AudioBase = typeof(setmetatable({}, {})) & {
 	ClassName: string,
@@ -64,14 +86,14 @@ export type AUWire = AudioBase & {
 
 export type AURouting = AudioBase & {
 	Instance: Folder,
-	Pins: { AudioPin },
-	Routing: { [AudioPin]: { AUWire } },
-	IsPin: (pin: AudioPin) -> boolean,
-	GetWiresAtPin: (pin: AudioPin) -> { AUWire },
-	ClearPin: (pin: AudioPin) -> (),
-	GetPinsFromInstance: (Instance: AudioMembers) -> { [AudioPin]: { AUWire } },
+	Pins: { string },
+	Routing: { [string]: { AUWire } },
+	IsPin: (pin: string) -> boolean,
+	GetWiresAtPin: (pin: string) -> { AUWire },
+	ClearPin: (pin: string) -> (),
+	GetPinsFromInstance: (Instance: AudioMembers) -> { [string]: { AUWire } },
 	WireTo: (target: AudioMembers) -> (),
-	AddWire: (wire: AUWire, pin: AudioPin) -> (),
+	AddWire: (wire: AUWire, pin: string) -> (),
 	Wire: (from: AudioMembers, to: AudioMembers) -> (),
 }
 
@@ -105,7 +127,6 @@ export type AUTextToSpeech = AudioBase & {
 }
 
 export type AUStream = AudioBase & {
-	StreamType: AudioStreamType,
 	Instance: AudioPlayer | AudioListener | AudioDeviceInput,
 	Stream: AUPlayback | AUListener | AUInput | AUTextToSpeech,
 	Play: () -> (),
@@ -166,7 +187,6 @@ export type AUFader = AudioBase & {
 }
 
 export type AUTransform = AudioBase & {
-	TransformType: AudioTransformType,
 	Routing: AURouting,
 	Instance: AudioTransforms,
 	In: AudioMembers,
@@ -185,6 +205,11 @@ export type AULayer = AudioBase & {
 	Out: AudioMembers,
 }
 
+export type AUAnalyzer = AudioBase & {
+	Instance: AudioAnalyzer,
+	In: AudioMembers,
+}
+
 export type AUParameter = AudioBase & {
 	_trove: Trove,
 	_value: number,
@@ -194,47 +219,12 @@ export type AUParameter = AudioBase & {
 	Set: (value: number) -> (),
 }
 
-local AudioEffects = {
-	"AudioEqualizer",
-	"AudioFlanger",
-	"AudioReverb",
-	"AudioPitchShifter",
-	"AudioChorus",
-	"AudioDistortion",
-}
-
-local AudioMembers = {
-	"AudioPlayer",
-	"AudioDeviceInput",
-	"AudioListener",
-	"AudioDeviceOutput",
-	"AudioEmitter",
-	"AudioFader",
-	"AudioEqualizer",
-	"AudioFlanger",
-	"AudioReverb",
-	"AudioPitchShifter",
-	"AudioChorus",
-	"AudioDistortion",
-	"AudioAnalyzer",
-}
-
-local AudioSources = {
-	"Player",
-	"Input",
-	"Listener",
-	"Mix",
-	"Effect",
-}
-
-local AudioTransforms = {
-	"AudioChannelMixer",
-	"AudioChannelSplitter",
-}
-
-return {
-	AudioEffects = table.freeze(AudioEffects),
-	AudioChildren = table.freeze(AudioMembers),
-	AudioSources = table.freeze(AudioSources),
-	AudioTransforms = table.freeze(AudioTransforms),
-}
+return table.freeze({
+	tAudioOutput = t.valueOf(EnumValues.Output),
+	tAudioPin = t.valueOf(EnumValues.Pin),
+	tAudioStream = t.valueOf(EnumValues.Stream),
+	tAudioTransform = t.valueOf(EnumValues.Transform),
+	tAudioEffect = t.valueOf(EnumValues.Effect),
+	tAudioAnalyzer = t.valueOf(EnumValues.Analyzer),
+	tAudioMembers = t.valueOf(EnumValues.AudioMembers),
+})

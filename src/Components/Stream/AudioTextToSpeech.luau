@@ -10,8 +10,11 @@ local Trove = require(Package.Packages.Trove)
 local Promise = require(Package.Packages.Promise)
 
 -- Imports > Package
-local Types = require(Package.Types)
 local applyInstanceProps = require(Package.Instances.applyInstanceProps)
+local Routing = require(Package.Components.Routing)
+
+-- Types
+local Types = require(Package.Types)
 
 -- Functions
 local tAudioTextToSpeech = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
@@ -61,6 +64,9 @@ function AudioTextToSpeech.new(parent: Instance, props: { [string]: any }?): Typ
 	-- Create our AudioTextToSpeech Instance
 	self.Instance = CreateTextToSpeech(parent, props)
 
+	-- Create our routing
+	self.Routing = Routing.new(self.Instance)
+
 	-- Attach to Instance
 	self._trove:AttachToInstance(self.Instance)
 
@@ -94,11 +100,15 @@ function AudioTextToSpeech:Play()
 		-- If not loaded, attempt to load it once..
 		self.Instance:Load()
 
+		self.Instanced.Loaded:Once(function()
+			self.Instance:Play()
+		end)
+
 		warn("AudioTextToSpeech: Cannot play because it is not loaded.")
 		return
+	else
+		self.Instance:Play()
 	end
-
-	self.Instance:Play()
 end
 
 --[=[

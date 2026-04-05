@@ -8,6 +8,9 @@ local Package = ReplicatedStorage:WaitForChild("Audio")
 local t = require(Package.Packages.t)
 local Trove = require(Package.Packages.Trove)
 
+-- Import > Enums
+local Enums = require(Package.Enums)
+
 -- Constants
 local DEFAULT_MIX_BUSES = {
 	"Music",
@@ -32,6 +35,8 @@ function Orchestra.new()
 	local self = {}
 	self.ClassName = "Orchestra"
 	self._trove = Trove.new()
+
+	self.Started = false
 
 	local comps = require(script.Components)
 	for compIndex, compValue in comps do
@@ -62,7 +67,7 @@ function Orchestra:Start()
 		return
 	end
 
-	self.MainOut = self._trove:Construct(self.Output, "Device", SoundService, {
+	self.MainOut = self._trove:Construct(self.Output, Enums.Output.Device, SoundService, {
 		Name = "MainOut",
 		Player = Players.LocalPlayer,
 	})
@@ -96,28 +101,39 @@ function Orchestra:Start()
 	audioPart.Parent = workspace
 
 	-- Create a new Emitter
-	local emitter = self._trove:Construct(self.Output, "Emitter", audioPart, {
+	local emitter = self._trove:Construct(self.Output, Enums.Output.Emitter, audioPart, {
 		AudioInteractionGroup = "Music",
 		Name = "DefaultEmitter",
 	})
 
 	-- Create a new AudioLayer
-	local audioLayer = self._trove:Construct(self.Layer, "Player", audioPart, {
+	local audioLayer = self._trove:Construct(self.Layer, Enums.Stream.Player, audioPart, {
 		Name = "DefaultAudioLayer",
-		AssetId = "rbxassetid://15287092994",
+		Asset = "rbxassetid://15287092994",
 	})
 
 	-- Add a AudioEffect to the Emitter
-	local audioEffect = self._trove:Construct(self.Effects, "Equalizer", emitter.Instance, {
+	local audioEffect = self._trove:Construct(self.Effects, Enums.Effect.Equalizer, emitter.Instance, {
 		Name = "DefaultEqualizer",
 	})
 
+	-- Add an Analyzer to the Emitter
+	local audioAnalyzer = self._trove:Construct(self.Analyzers, Enums.Analyzer.Spectrum, emitter.Instance, {
+		Name = "DefaultSpectrumAnalyzer",
+	})
+
+	-- Wire the Emitter to the Analyzer
+	audioLayer.Routing:WireTo(audioAnalyzer.In)
+
 	-- Wire the AudioLayer to the Emitter through the AudioEffect
-	audioLayer.Routing:Wire(audioLayer.Out, audioEffect.In)
-	audioEffect.Routing:Wire(audioEffect.Out, emitter.In)
+	audioLayer.Routing:WireTo(audioEffect.In)
+	audioEffect.Routing:WireTo(emitter.In)
 
 	-- Play the Stream connected to the AudioLayer
 	audioLayer.Stream:Play()
+
+	-- Tween our Sound over a duration of 10 seconds..
+	audioLayer.Fader:Tween(3, TweenInfo.new(1))
 end
 
 local tAddMix = t.string
@@ -153,8 +169,12 @@ local tAddListener = t.string
 function Orchestra:AddListener(listenerName: string)
 	assert(tAddListener(listenerName))
 
+	if not self.Mixes or not self.Mixes[listenerName] then
+		error("Orchestra:AddListener - Mix bus does not exist for listener: " .. listenerName)
+	end
+
 	-- Create a new Audio Listener
-	local listener = self._trove:Construct(self.Stream, "Listener", game.Workspace.CurrentCamera, {
+	local listener = self._trove:Construct(self.Stream, Enums.Stream.Listener, game.Workspace.CurrentCamera, {
 		Name = string.format("Listener:%s", listenerName),
 		AudioInteractionGroup = listenerName,
 	})

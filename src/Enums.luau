@@ -5,7 +5,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Package = ReplicatedStorage:WaitForChild("Audio")
 local EnumList = require(Package.Packages.EnumList)
 
-local Enums = table.freeze({
+export type EnumList = EnumList.EnumList
+export type EnumItem = EnumList.EnumItem
+
+local Enums = {
 	Output = EnumList.new("Output", {
 		"Device",
 		"Emitter",
@@ -33,13 +36,32 @@ local Enums = table.freeze({
 		"Equalizer",
 		"Flanger",
 		"Gate",
-		"PitchShift",
+		"PitchShifter",
 		"Reverb",
 		"Tremolo",
 	}),
-})
+	Analyzer = EnumList.new("Analyzer", {
+		"Spectrum",
+	}),
+	AudioMembers = EnumList.new("AudioMembers", {
+		"AudioPlayer",
+		"AudioDeviceInput",
+		"AudioListener",
+		"AudioDeviceOutput",
+		"AudioEmitter",
+		"AudioFader",
+		"AudioAnalyzer",
+		"AudioChorus",
+		"AudioCompressor",
+		"AudioDistortion",
+		"AudioEcho",
+		"AudioEqualizer",
+		"AudioFlanger",
+		"AudioGate",
+		"AudioPitchShifter",
+		"AudioReverb",
+		"AudioTremolo",
+	}),
+} :: { [string]: EnumList }
 
-export type EnumList = EnumList.EnumList
-export type EnumItem = EnumList.EnumItem
-
-return Enums
+return table.freeze(Enums)
