@@ -77,7 +77,7 @@ local function CreatePlayer(parent: Instance, props: { [string]: any }?): AudioP
 	local assetId: any? = nil
 
 	if props then
-		local ASSET_FIELDS = { "Asset", "AssetId", "Sound", "SoundId" }
+		local ASSET_FIELDS = { "Asset", "AssetId", "Sound", "SoundId", "Content"}
 		for _, field in ASSET_FIELDS do
 			if props[field] then
 				if assetId then

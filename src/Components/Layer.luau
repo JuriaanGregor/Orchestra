@@ -23,7 +23,7 @@ local AudioLayer = {}
 AudioLayer.__index = AudioLayer
 
 --[=[
-	@class AudioLayer 
+	@class Layer 
 	@tag Base
 
 	Represents an AudioLayer object.
@@ -33,6 +33,7 @@ AudioLayer.__index = AudioLayer
 local tAudioLayer = t.tuple(Types.tAudioStream, t.Instance, t.optional(t.map(t.string, t.any)))
 
 --[=[
+	@within Layer
 	Creates a new AudioLayer object
 ]=]
 function AudioLayer.new(inputType: Enums.EnumItem, parent: Instance, props: { [string]: any }?): Types.AULayer
@@ -86,9 +87,19 @@ function AudioLayer.__tostring()
 	return "AudioLayer"
 end
 
+--[=[
+	@within Layer
+	Pauses the AudioLayer
+]=]
+
 function AudioLayer:Stop()
 	self.Stream:Stop()
 end
+
+--[=[
+	@within Layer
+	Pauses the AudioLayer
+]=]
 
 function AudioLayer:Play(completeHandler: () -> ()?)
 	if completeHandler then
@@ -98,6 +109,7 @@ function AudioLayer:Play(completeHandler: () -> ()?)
 end
 
 --[=[
+	@within Layer
 	Destroys the AudioLayer object
 ]=]
 

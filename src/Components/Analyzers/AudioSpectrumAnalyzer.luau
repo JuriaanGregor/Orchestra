@@ -64,6 +64,10 @@ function AudioSpectrumAnalyzer.new(parent: Instance, props: { [string]: any }?):
 	return setmetatable(self :: any, AudioSpectrumAnalyzer) :: Types.AUAnalyzer
 end
 
+--[=[
+    Returns the current spectrum data. This is an array of 512 numbers representing the spectrum data of the audio.
+]=]
+
 function AudioSpectrumAnalyzer:GetSpectrum(): {}
 	-- Spectrum data is only available on the client, so we need to check if we're on the server or not.
 	if RunService:IsServer() then
@@ -80,6 +84,10 @@ function AudioSpectrumAnalyzer:GetSpectrum(): {}
 
 	return self.Instance:GetSpectrum()
 end
+
+--[=[
+    Observes the spectrum data of the audio. This returns a signal that fires every frame with the current spectrum data. The second return value is a function that can be called to stop observing the spectrum data.
+]=]
 
 function AudioSpectrumAnalyzer:ObserveSpectrum(): (Types.Signal, () -> ())
 	-- Create a Trove that we will use to clean up our connection when the AudioAnalyzer is destroyed.
@@ -104,6 +112,10 @@ function AudioSpectrumAnalyzer:ObserveSpectrum(): (Types.Signal, () -> ())
 	end
 end
 
+--[=[
+    Returns the current peak level of the audio. This is a number between 0 and 1 representing the peak level of the audio.
+]=]
+
 function AudioSpectrumAnalyzer:GetPeak()
 	if RunService:IsServer() then
 		error("GetPeak can only be called on the client.")
@@ -111,6 +123,10 @@ function AudioSpectrumAnalyzer:GetPeak()
 
 	return self.Instance.PeakLevel
 end
+
+--[=[
+    Observes the peak level of the audio. This returns a signal that fires every frame with the current peak level of the audio. The second return value is a function that can be called to stop observing the peak level.
+]=]
 
 function AudioSpectrumAnalyzer:ObservePeak(): (Types.Signal, () -> ())
 	local observeTrove = self._trove:Extend()
@@ -133,6 +149,10 @@ function AudioSpectrumAnalyzer:ObservePeak(): (Types.Signal, () -> ())
 	end
 end
 
+--[=[
+    Returns the current RMS level of the audio. This is a number between 0 and 1 representing the RMS level of the audio.
+]=]
+
 function AudioSpectrumAnalyzer:GetRMS()
 	if RunService:IsServer() then
 		error("GetRMS can only be called on the client.")
@@ -140,6 +160,10 @@ function AudioSpectrumAnalyzer:GetRMS()
 
 	return self.Instance.RmsLevel
 end
+
+--[=[
+    Observes the RMS level of the audio. This returns a signal that fires every frame with the current RMS level of the audio. The second return value is a function that can be called to stop observing the RMS level.
+]=]
 
 function AudioSpectrumAnalyzer:ObserveRMS(): (Types.Signal, () -> ())
 	local observeTrove = self._trove:Extend()

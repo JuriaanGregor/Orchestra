@@ -39,6 +39,10 @@ local AudioListener = {}
 AudioListener.__index = AudioListener
 
 local tAudioListener = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
+
+--[=[
+	Creates a new AudioListener.
+]=]
 function AudioListener.new(parent: Instance, props: { [string]: any }?): Types.AUListener
 	assert(tAudioListener(parent, props))
 
@@ -67,6 +71,10 @@ end
 function AudioListener:__tostring()
 	return "AudioListener"
 end
+
+--[=[
+	Destroys the AudioListener.
+]=]
 
 function AudioListener:Destroy()
 	self._trove:Destroy()

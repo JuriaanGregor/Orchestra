@@ -56,7 +56,7 @@ AudioRouting.__index = AudioRouting
 
 local tAudioRouting = t.tuple(t.Instance, t.optional(t.array(t.table)))
 --[=[
-	@class AudioRouting 
+	@class Routing
 	@tag Base
 
 	Represents an AudioRouting, which is used to route audio from one instance to another.
@@ -122,6 +122,11 @@ function AudioRouting.new(parent: Types.AudioMembers | Instance, pins: { Enums.E
 	return setmetatable(self :: any, AudioRouting) :: Types.AURouting
 end
 
+--[=[
+	@within Routing
+	Wires this AudioRouting from a given pin to another AudioRouting's pin
+]=]
+
 function AudioRouting:Wire(from: AudioRoutingPin, to: AudioRoutingPin)
 	local wire
 
@@ -156,6 +161,11 @@ function AudioRouting:Wire(from: AudioRoutingPin, to: AudioRoutingPin)
 	self._trove:Add(wire)
 end
 
+--[=[
+	@within Routing
+	Wires this AudioRouting from a given AudioMember to another AudioMember, it will automatically figure out the pins to wire from and to based on the available pins on the source and target AudioMembers
+]=]
+
 function AudioRouting:WireTo(to: Types.AudioMembers, toPin: string?)
 	if not self.AudioMember then
 		error("Only AudioMembers can be wired to other AudioMembers, this routing is not an AudioMember")
@@ -187,6 +197,11 @@ function AudioRouting:WireTo(to: Types.AudioMembers, toPin: string?)
 	self._trove:Add(wire)
 end
 
+--[=[
+	@within Routing
+	Wires this AudioRouting from a given AudioMember to another AudioMember, it will automatically figure out the pins to wire from and to based on the available pins on the source and target AudioMembers
+]=]
+
 function AudioRouting:WireFrom(from: Types.AudioMembers, fromPin: string?)
 	if not self.AudioMember then
 		error("Only AudioMembers can be wired from other AudioMembers, this routing is not an AudioMember")
@@ -217,6 +232,11 @@ function AudioRouting:WireFrom(from: Types.AudioMembers, fromPin: string?)
 
 	self._trove:Add(wire)
 end
+
+--[=[
+	@within Routing
+	Clears all wires from a given pin on this AudioRouting
+]=]
 
 function AudioRouting:Destroy()
 	self._trove:Destroy()

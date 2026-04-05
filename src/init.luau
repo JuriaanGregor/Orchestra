@@ -124,7 +124,7 @@ function Orchestra:Start()
 	-- Create a new AudioLayer
 	local audioLayer = self._trove:Construct(self.Layer, Enums.Stream.Player, audioPart, {
 		Name = "DefaultAudioLayer",
-		Asset = "rbxassetid://15287092994",
+		Content = "rbxassetid://15287092994",
 	})
 
 	-- Add a AudioEffect to the Emitter

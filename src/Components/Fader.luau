@@ -47,16 +47,17 @@ local AudioFader = {}
 AudioFader.__index = AudioFader
 
 --[=[
-	@class AudioFader
+	@class Fader
 	@tag Base
 
-	Represents an AudioFader, which is a fader that can be used to control the volume of an audio source.
+	Represents a AudioFader, which is a fader that can be used to control the volume of an audio source.
 ]=]
 
 local tAudioFader = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 
 --[=[
-	Creates a new AudioFader
+	@within Fader
+	Creates a new Fader
 ]=]
 function AudioFader.new(parent: Instance, props: { [string]: any }?): Types.AUFader
 	assert(tAudioFader(parent, props))
@@ -96,6 +97,7 @@ end
 local tSetFader = t.tuple(tVolume)
 
 --[=[
+	@within Fader
 	Sets the AudioFader to the desired volume
 	@param volume number[0,3] -- A number between 0 (min) and 3 (max)
 ]=]
@@ -127,6 +129,7 @@ end
 
 local tTween = t.tuple(tVolume, t.TweenInfo)
 --[=[
+	@within Fader
 	Tweens a Fader to goal
 	@param goal number[0,3] -- The goal for the Volume of the fader
 	@param tweenInfo TweenInfo? -- TweenInfo, if not provided a default TweenInfo will be used
@@ -180,6 +183,7 @@ end
 
 local tFadeOut = t.tuple(t.numberPositive, t.optional(tVolume))
 --[=[
+	@within Fader
 	FadeOut a fader in X duration
 	@param duration number -- The amount of seconds that it should take to fade-out the fader
 	@param goal number[0,3] -- The goal that we are targetting
@@ -200,6 +204,7 @@ end
 
 local tFadeIn = t.tuple(t.numberPositive, t.optional(tVolume))
 --[=[
+	@within Fader
 	FadeIn a fader in X duration
 	@param duration number -- The amount of seconds that it should take to fade-in the fader
 	@param goal number[0,3] -- The goal that we are targetting
@@ -219,6 +224,7 @@ end
 
 local tMute = t.tuple(t.optional(t.boolean))
 --[=[
+	@within Fader
 	Mutes a Fader
 	@param noTween boolean? -- When provided and set to true, this will disable any tweening and do a hard-cut instead.
 ]=]
@@ -248,6 +254,7 @@ function AudioFader:Mute(noTween: boolean?)
 end
 
 --[=[
+	@within Fader
 	Destroys the AudioFader
 ]=]
 function AudioFader:Destroy()

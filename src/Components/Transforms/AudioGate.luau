@@ -33,7 +33,7 @@ AudioGate.__index = AudioGate
 
 --[=[
 	@class AudioGate
-	@tag Effects
+	@tag Transforms
 
 	Represents an audio gate. This is used to adjust the audio gate properties.
 ]=]

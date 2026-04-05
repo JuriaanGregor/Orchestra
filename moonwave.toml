@@ -28,3 +28,8 @@ tag = "Stream"
 section = "Transforms"
 collapsed = true
 tag = "Transforms"
+
+[[classOrder]]
+section = "Analyzers"
+collapsed = true 
+tag = "Analyzer"

@@ -46,15 +46,16 @@ local AudioWire = {}
 AudioWire.__index = AudioWire
 
 --[=[
-	@class AudioWire
+	@class Wire
 	@tag Base
 
-	Represents an AudioWire that connects two Audio Instances together.
+	Represents a Wire that connects two Audio Instances together.
 ]=]
 
 local tAudioWire = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 
 --[=[
+	@within Wire
 	Creates a new AudioWire
 ]=]
 function AudioWire.new(parent: Instance, props: { [string]: any }?): Types.AUWire
@@ -120,6 +121,7 @@ end
 
 local tGetWireById = t.tuple(t.string)
 --[=[
+	@within Wire
 	Gets an AudioWire by its ID
 ]=]
 
@@ -142,13 +144,15 @@ function AudioWire:__tostring()
 end
 
 --[=[
-    Checks if the AudioWire is connected
+	@within Wire
+	Checks if the AudioWire is connected
 ]=]
 function AudioWire:IsConnected(): boolean
 	return self.Instance.Connected
 end
 
 --[=[
+	@within Wire
 	Destroys the AudioWire
 ]=]
 function AudioWire:Destroy()

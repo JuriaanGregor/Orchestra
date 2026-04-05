@@ -28,32 +28,32 @@ local function CreatePitchShift(parent: Instance, props: { [string]: any }?): Au
 end
 
 ---------------------------------------------------------------------
-local AudioPitchShift = {}
-AudioPitchShift.__index = AudioPitchShift
+local AudioPitchShifter = {}
+AudioPitchShifter.__index = AudioPitchShifter
 
 --[=[
-	@class AudioPitchShift
+	@class AudioPitchShifter
 	@tag Effects
 
-	Represents an audio pitch shift. This is used to adjust the audio pitch shift properties.
+	Represents an audio pitch shifter. This is used to adjust the audio pitch shifter properties.
 ]=]
 
 --[=[
 	Creates a new AudioPitchShift.
 ]=]
 
-function AudioPitchShift.new(parent: Instance, props: { [string]: any }?)
+function AudioPitchShifter.new(parent: Instance, props: { [string]: any }?)
 	assert(tAudioPitchShift(parent, props))
 
 	-- Create a new AudioPitchShift
 	local self = {}
 	self.Type = "Effects"
-	self.ClassName = "AudioPitchShift"
+	self.ClassName = "AudioPitchShifter"
 
 	-- Create our Trove
 	self._trove = Trove.new()
 
-	-- Create our AudioPitchShift Instance
+	-- Create our AudioPitchShifter Instance
 	self.Instance = CreatePitchShift(parent, props)
 
 	-- Create our routing
@@ -65,18 +65,18 @@ function AudioPitchShift.new(parent: Instance, props: { [string]: any }?)
 	self.In = self.Instance
 	self.Out = self.Instance
 
-	return setmetatable(self :: any, AudioPitchShift)
+	return setmetatable(self :: any, AudioPitchShifter)
 end
 
-function AudioPitchShift:__tostring()
-	return "AudioPitchShift"
+function AudioPitchShifter:__tostring()
+	return "AudioPitchShifter"
 end
 
 --[=[
-	Destroys the AudioPitchShift.
+	Destroys the AudioPitchShifter.
 ]=]
-function AudioPitchShift:Destroy()
+function AudioPitchShifter:Destroy()
 	self._trove:Destroy()
 end
 
-return AudioPitchShift
+return AudioPitchShifter
