@@ -100,7 +100,7 @@ function AudioTextToSpeech:Play()
 		-- If not loaded, attempt to load it once..
 		self.Instance:Load()
 
-		self.Instanced.Loaded:Once(function()
+		self.Instance.Loaded:Once(function()
 			self.Instance:Play()
 		end)
 
