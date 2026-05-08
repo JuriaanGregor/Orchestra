@@ -2,35 +2,32 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Import > Packages
-local Package = ReplicatedStorage:WaitForChild("Audio")
-local EnumList = require(Package.Packages.EnumList)
+local Package = ReplicatedStorage:WaitForChild("Orchestra")
+local Enums = require(Package.Packages.EnumList)
 
-export type EnumList = EnumList.EnumList
-export type EnumItem = EnumList.EnumItem
-
-local Enums = {
-	Output = EnumList.new("Output", {
+local AudioEnums = {
+	Output = Enums.new("Output", {
 		"Device",
 		"Emitter",
 	}),
-	Stream = EnumList.new("Stream", {
+	Stream = Enums.new("Stream", {
 		"Player",
 		"Input",
 		"Listener",
 		"TextToSpeech",
 	}),
-	Transform = EnumList.new("Transform", {
+	Transform = Enums.new("Transform", {
 		"ChannelMixer",
 		"ChannelSplitter",
 		"Limiter",
 		"Gate",
 	}),
-	Pin = EnumList.new("Pin", {
+	Pin = Enums.new("Pin", {
 		"Input",
 		"Output",
 		"Sidechain",
 	}),
-	Effect = EnumList.new("Effect", {
+	Effect = Enums.new("Effect", {
 		"Chorus",
 		"Compressor",
 		"Distortion",
@@ -42,10 +39,10 @@ local Enums = {
 		"Reverb",
 		"Tremolo",
 	}),
-	Analyzer = EnumList.new("Analyzer", {
+	Analyzer = Enums.new("Analyzer", {
 		"Spectrum",
 	}),
-	AudioMembers = EnumList.new("AudioMembers", {
+	AudioMembers = Enums.new("AudioMembers", {
 		"AudioPlayer",
 		"AudioDeviceInput",
 		"AudioListener",
@@ -67,6 +64,6 @@ local Enums = {
 		"AudioChannelMixer",
 		"AudioLimiter",
 	}),
-} :: { [string]: EnumList }
+} :: { [string]: Enums.EnumList }
 
-return table.freeze(Enums)
+return table.freeze(AudioEnums)

@@ -1,0 +1,29 @@
+{
+	"name": "Orchestra",
+	"servePort": 34872,
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+            "Orchestra": {
+                "$path": "src/Orchestra",
+                "Packages": {
+                    "$className": "Folder",
+                    "$path": "Packages",
+                    "t": {
+                        "$path": "Lib/t"
+                    }
+                },
+                "DevPackages": {
+                    "$path": "DevPackages"
+                }
+            }
+		}, 
+        "ServerScriptService": {
+            "$className": "ServerScriptService",
+            "TestEnv": {
+                "$path": "src/TestEnv"
+            }
+        }
+    }
+}

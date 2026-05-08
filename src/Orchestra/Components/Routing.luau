@@ -25,7 +25,7 @@ type AudioRoute = {
 export type AudioRoutingPin = {
 	Instance: Types.AudioMembers,
 	PinType: string,
-	Pin: Enums.EnumItem
+	Pin: Enums.EnumItem,
 }
 
 local function CreateWire(from: AudioRoutingPin, to: AudioRoutingPin): Types.AUWire

@@ -15,7 +15,7 @@ local Enums = require(Package.Enums)
 
 -- Variables
 local AUDIO_ANALYSERS: { [string]: any } = {
-    [Enums.Analyzer.Spectrum.Name] = require(script.AudioSpectrumAnalyzer)
+	[Enums.Analyzer.Spectrum.Name] = require(script.AudioSpectrumAnalyzer),
 }
 
 -- Functions

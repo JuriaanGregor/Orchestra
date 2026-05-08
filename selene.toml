@@ -1,1 +1,7 @@
-std="roblox"
+std = "roblox"
+exclude = [
+	"Packages/*",
+]
+
+[config]
+global_usage = { ignore_pattern = "^__SIGNALS|^__DEV__" }
