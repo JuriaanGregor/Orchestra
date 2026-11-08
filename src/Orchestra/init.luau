@@ -14,6 +14,28 @@ local Enums = require("@self/Enums")
 -- Import > Configs
 local Config = require("@self/Config")
 
+-- Import > Presets
+local Presets = require("@self/Presets")
+
+-- Reserved: the Main layer's InsertChain is named `Inserts:Main`
+local MAIN_NAME = "Main"
+
+type StartOptions = {
+	Buses: { string }?,
+	Platform: Presets.Platform?,
+	Presets: { [string]: string }?,
+}
+
+local tStartOptions = t.optional(t.strictInterface({
+	Buses = t.optional(t.array(t.string)),
+	Platform = t.optional(t.literal("Mobile", "Desktop", "Console")),
+	Presets = t.optional(t.strictInterface({
+		Mobile = t.optional(t.string),
+		Desktop = t.optional(t.string),
+		Console = t.optional(t.string),
+	})),
+}))
+
 ---------------------------------------------------------------------
 
 local function createMaster(trove: Dependencies.Trove, fader: any)
@@ -134,6 +156,14 @@ end
 ]=]
 
 --[=[
+	@prop Presets Presets
+	@within Orchestra
+	@readonly
+
+	The engine's [Presets]: register presets before [Orchestra:Start], and Start applies the platform's preset.
+]=]
+
+--[=[
 	@prop InsertChain InsertChain
 	@within Orchestra
 	@readonly
@@ -227,6 +257,8 @@ function Orchestra.new()
 	self.Mixes = {}
 	self.Inserts = {}
 	self.Trims = {}
+	-- Bus names in the order they were added
+	self._busNames = {} :: { string }
 
 	-- Expose our Enums, these are needed to create components through the factories
 	self.Enums = Enums
@@ -236,7 +268,12 @@ function Orchestra.new()
 		self[compIndex] = compValue
 	end
 
-	return setmetatable(self :: any, Orchestra)
+	local engine = setmetatable(self :: any, Orchestra)
+
+	-- Presets can be registered before Start; Start applies them
+	engine.Presets = Presets.new(engine)
+
+	return engine
 end
 
 function Orchestra:__tostring()
@@ -246,12 +283,21 @@ end
 --[=[
 	@within Orchestra
 	Builds the mixer: `MainOut`, the Master Fader, the Main layer's [InsertChain], and a mix bus + listener for every
-	bus in [Config.MIX_BUSES].
-	Errors on the server; warns and does nothing if already started.
+	bus. Then picks the platform and applies its preset, see [Presets].
+	Errors on the server or on invalid options; warns and does nothing if already started.
 
+	```lua
+	Orchestra:Start({
+		Buses = { "SFX", "Music", "UI", "Footsteps" }, -- default: Config.MIX_BUSES
+		Platform = nil, -- nil = detect; or "Mobile" | "Desktop" | "Console" to force one
+		Presets = { Console = "Living room" }, -- platform -> preset name, for presets not named after the platform
+	})
+	```
+
+	@param options { Buses: { string }?, Platform: ("Mobile" | "Desktop" | "Console")?, Presets: { Mobile: string?, Desktop: string?, Console: string? }? }?
 	@client
 ]=]
-function Orchestra:Start()
+function Orchestra:Start(options: StartOptions?)
 	if self.Started then
 		warn("Orchestra:Start - Audio Engine already started")
 		return
@@ -259,6 +305,27 @@ function Orchestra:Start()
 
 	if not RunService:IsClient() then
 		error("Orchestra:Start - The audio engine can only be started on the client")
+	end
+
+	assert(tStartOptions(options))
+
+	local busNames: { string } = {}
+	if options and options.Buses then
+		for _, bus in options.Buses do
+			if bus == "" or bus == MAIN_NAME then
+				error(string.format("Orchestra:Start - '%s' can't be used as a bus name", bus))
+			end
+
+			if table.find(busNames, bus) then
+				error(string.format("Orchestra:Start - Bus '%s' is listed twice", bus))
+			end
+
+			table.insert(busNames, bus)
+		end
+	else
+		for _, bus in Config.MIX_BUSES:GetEnumItems() do
+			table.insert(busNames, bus.Name)
+		end
 	end
 
 	if SoundService:FindFirstChild("Mixes") then
@@ -297,11 +364,24 @@ function Orchestra:Start()
 	})
 	self.MainInserts.Routing:WireTo(self.Master.In)
 
-	-- Add default mix buses
-	for _, bus in Config.MIX_BUSES:GetEnumItems() do
-		self:AddMix(bus.Name)
-		self:AddListener(bus.Name)
+	-- Add our mix buses
+	for _, bus in busNames do
+		self:AddMix(bus)
+		self:AddListener(bus)
 	end
+
+	-- Pick the platform and apply its preset, without tweening
+	self.Presets:_start(options and options.Platform, options and options.Presets)
+end
+
+--[=[
+	@within Orchestra
+	Returns the mix bus names, in the order they were added.
+
+	@return { string }
+]=]
+function Orchestra:GetBusNames(): { string }
+	return table.clone(self._busNames)
 end
 
 local tAddMix = t.string
@@ -321,6 +401,10 @@ function Orchestra:AddMix(busName: string)
 
 	if not self.Started then
 		error("Orchestra:AddMix - Call Orchestra:Start first")
+	end
+
+	if busName == "" or busName == MAIN_NAME then
+		error(string.format("Orchestra:AddMix - '%s' can't be used as a bus name", busName))
 	end
 
 	-- Check if mix bus already exists
@@ -351,6 +435,12 @@ function Orchestra:AddMix(busName: string)
 	self.Inserts[busName] = inserts
 	self.Mixes[busName] = mixBus
 	self.Trims[busName] = trim
+	table.insert(self._busNames, busName)
+
+	-- A bus added after Start gets its volume from the active presets
+	if self.Presets._started then
+		self.Presets:_apply(false)
+	end
 
 	-- Return our mix bus
 	return mixBus

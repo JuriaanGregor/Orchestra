@@ -54,6 +54,24 @@ Orchestra.MainInserts:Add(Orchestra.Transforms.new(Enums.Transform.Limiter, Orch
 Orchestra:SetPlayerVolume("Music", 0.5)
 ```
 
+### Presets
+
+Presets set the bus and Main (Master) volumes per platform. Register them before `Start()`; Start detects the platform (`Mobile`, `Desktop` or `Console`) and applies the preset with that name, falling back to `Base`. A player-picked output profile, such as `Headphones`, goes on top:
+
+```lua
+Orchestra.Presets:Register({ Name = "Base", Buses = { Music = { Volume = 0.8 } } })
+Orchestra.Presets:Register({ Name = "Mobile", Extends = "Base", Buses = { Dialogue = { Volume = 1.2 } } })
+Orchestra.Presets:Register({ Name = "Headphones", Main = { Volume = 0.8 } })
+
+Orchestra:Start({
+	Buses = { "SFX", "Music", "Dialogue", "UI" }, -- optional: the default is SFX, UI, Voice, Dialogue, Music, Environment
+})
+
+Orchestra.Presets:SetOutputProfile("Headphones") -- from your settings menu; nil clears it
+```
+
+Changes tween over the preset's `Transition` (0.5 seconds by default). Presets own the bus faders and Master, so keep player settings on the trims.
+
 > **Set `SoundService.DefaultListenerLocation` to `None` in your place.** Otherwise Roblox's default listener wires itself into Orchestra's output, and emitters without an `AudioInteractionGroup` skip the mixer. Game scripts can't set this property, so set it in Studio or in your Rojo project (`test.project.json` does this).
 
 ## Documentation
@@ -80,6 +98,8 @@ rojo serve test.project.json      # sync into Studio
 ```
 
 `test.project.json` mounts Orchestra at `ReplicatedStorage.Packages.Orchestra`, next to its dependencies (the layout Wally uses). It also adds a client script (`src/TestEnv`) that starts the engine and builds a demo scene.
+
+Tests are Jest specs (`*.spec.luau`) next to the code. `scripts/test.lua` runs them in Roblox; in Studio, run it from the command bar while `rojo serve` is syncing. `test.project.json` mounts a `JestGlobals` stub (`scripts/JestGlobals.luau`) in `DevPackages`: Jest intercepts requires of that name and hands back `describe`, `it` and `expect`.
 
 Checks (also in `.lute/analyze.luau`):
 
