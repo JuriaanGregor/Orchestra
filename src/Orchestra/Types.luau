@@ -228,6 +228,18 @@ export type AUFader = Node<AudioFader> & {
 	Mute: (self: any, noTween: boolean?) -> any,
 }
 
+-- Anything that can sit in an InsertChain: a component with an `In` and `Out` audio instance
+export type AUInsert = AUEffect | AUTransform | AUFader
+
+export type AUInsertChain = Object<Folder> & {
+	Routing: AURouting,
+	In: AudioFader,
+	Out: AudioFader,
+	Add: (self: any, insert: AUInsert, index: number?) -> AUInsert,
+	Remove: (self: any, insert: AUInsert) -> AUInsert,
+	GetInserts: (self: any) -> { AUInsert },
+}
+
 export type AULayer = Object<Folder> & {
 	Stream: AUStream,
 	Fader: AUFader,

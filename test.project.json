@@ -13,7 +13,10 @@
             },
 
             "DevPackages": {
-                "$path": "DevPackages"
+                "$path": "DevPackages",
+                "JestGlobals": {
+                    "$path": "scripts/JestGlobals.luau"
+                }
             }
 		},
         "SoundService": {

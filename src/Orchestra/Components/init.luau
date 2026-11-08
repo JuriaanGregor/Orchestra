@@ -5,6 +5,7 @@ return table.freeze({
 	["Output"] = require("@self/Output"),
 	["Fader"] = require("@self/Fader"),
 	["Layer"] = require("@self/Layer"),
+	["InsertChain"] = require("@self/InsertChain"),
 	["Wire"] = require("@self/Wire"),
 	["Effects"] = require("@self/Effects"),
 	["Transforms"] = require("@self/Transforms"),
