@@ -1,0 +1,38 @@
+{
+	"name": "Orchestra",
+	"servePort": 34872,
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+            "Packages": {
+                "$path": "Packages",
+                "t": {
+                    "$path": "Lib/t"
+                },
+                "Orchestra": {
+                    "$path": "src/Orchestra"
+                }
+            },
+
+            "DevPackages": {
+                "$path": "DevPackages"
+            }
+		},
+        "SoundService": {
+            "$className": "SoundService",
+            "$properties": {
+                "DefaultListenerLocation": "None"
+            }
+        },
+        "StarterPlayer": {
+            "$className": "StarterPlayer",
+            "StarterPlayerScripts": {
+                "$className": "StarterPlayerScripts",
+                "TestClient": {
+                    "$path": "src/TestEnv"
+                }
+            }
+        }
+    }
+}

@@ -1,13 +1,20 @@
 [package]
 name = "juriaan/orchestra"
-version = "0.0.1"
+version = "0.0.2"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 
+[place]
+shared-packages = "game.ReplicatedStorage.Packages"
+dev-packages = "game.ReplicatedStorage.DevPackages"
+
 [dependencies]
 Component = "sleitnick/component@2.4.8"
-Trove = "sleitnick/trove@1.5.1"
-TableUtil = "sleitnick/table-util@1.2.1"
-Signal = "sleitnick/signal@2.0.3"
+React = "jsdotlua/react@17.2.1"
+Trove = "sleitnick/trove@1.8.0"
+Signals = "roblox/signals@0.9.0"
 EnumList = "sleitnick/enum-list@2.1.0"
 Promise = "evaera/promise@4.0.0"
+
+[dev-dependencies]
+Jest = "jsdotlua/jest@3.10.0"

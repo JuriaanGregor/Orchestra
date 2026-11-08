@@ -1,83 +1,70 @@
 # Orchestra
 
-**Orchestra** is a Roblox audio framework written in Luau that provides a structured, signal-graph-style API for building audio pipelines in Roblox games. It wraps Roblox's native Audio API instances (`AudioPlayer`, `AudioFader`, `AudioWire`, etc.) in composable components that you wire together — similar to a DAW or audio mixing desk.
+**Orchestra** is a Roblox audio framework written in Luau. It wraps Roblox's Audio API instances (`AudioPlayer`, `AudioFader`, `AudioEmitter`, `Wire`, ...) in components you wire together, like a DAW or a mixing desk. On the client it builds a mixer for you: one bus per sound category (`SFX`, `Music`, `UI`, ...), feeding into a Master fader.
 
-## Overview
+> **Status:** early development (`v0.0.2`). The API may still change, and Orchestra is not published to Wally yet.
 
-Orchestra models audio as a graph of **nodes** connected by **wires**. Each node has input/output pins and can be routed to other nodes. This lets you build chains like:
+## Getting started
 
+```lua
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Orchestra = require(ReplicatedStorage.Packages.Orchestra)
+local Enums = Orchestra.Enums
+
+-- Builds the mixer (client only). Requiring Orchestra has no side effects.
+Orchestra:Start()
+
+local speaker = workspace.Speaker
+
+local music = Orchestra.Layer.new(Enums.Stream.Player, speaker, { Asset = "rbxassetid://15287092994" })
+local reverb = Orchestra.Effects.new(Enums.Effect.Reverb, speaker)
+local emitter = Orchestra.Output.new(Enums.Output.Emitter, speaker, { AudioInteractionGroup = "Music" })
+
+music.Routing:WireTo(reverb.In)
+reverb.Routing:WireTo(emitter.In)
+
+music:Play()
+music.Fader:FadeIn(2)
 ```
-AudioPlayer → AudioFader → AudioEqualizer → AudioDeviceOutput
+
+The emitter's `AudioInteractionGroup` picks the mix bus it plays through.
+
+> **Set `SoundService.DefaultListenerLocation` to `None` in your place.** Otherwise Roblox's default listener wires itself into Orchestra's output, and emitters without an `AudioInteractionGroup` skip the mixer. Game scripts can't set this property, so set it in Studio or in your Rojo project (`test.project.json` does this).
+
+## Documentation
+
+**[juriaangregor.github.io/Orchestra](https://juriaangregor.github.io/Orchestra/)**: API docs for every component, the factories, `Enums` and the engine.
+
+They're generated from the source with [Moonwave](https://eryn.io/moonwave/). To preview them locally:
+
+```sh
+moonwave dev
 ```
 
-All cleanup is handled automatically via [Trove](https://github.com/Sleitnick/RbxUtil), and signals use [Signal](https://github.com/Sleitnick/RbxUtil).
+## Development
 
-## Components
+The toolchain is managed with [Rokit](https://github.com/rojo-rbx/rokit) (see `rokit.toml`).
 
-### Stream (Sources)
-Audio sources that produce audio signals.
+```sh
+rokit install                     # install the toolchain
+wally install                     # install packages
+wally-patch-package               # apply WallyPatches/ to the installed packages
+rojo sourcemap test.project.json -o sourcemap.json
+wally-package-types --sourcemap sourcemap.json Packages/   # re-export package types for luau-lsp
+rojo serve test.project.json      # sync into Studio
+```
 
-| Component | Description |
-|---|---|
-| `AudioPlayer` | Plays an audio asset. Supports `Play`, `Pause`, `Stop`, and fires `Loaded`, `Ended`, `Looped` signals. |
-| `AudioDeviceInput` | Wraps a microphone / device input. |
-| `AudioListener` | Spatial audio listener. |
-| `AudioTextToSpeech` | Text-to-speech audio source. |
+`test.project.json` mounts Orchestra at `ReplicatedStorage.Packages.Orchestra`, next to its dependencies (the layout Wally uses). It also adds a client script (`src/TestEnv`) that starts the engine and builds a demo scene.
 
-### Fader
-- **`AudioFader`** — Controls volume (0–3) with `Set`, `Tween`, `FadeIn`, `FadeOut`, and `Mute`. Tweens return a `Signal` that fires on completion.
-- **`AudioMixBus`** — Same as Fader but intended as a submix bus. Useful for grouping channels (e.g. music bus, SFX bus).
+Checks (also in `.lute/analyze.luau`):
 
-### Layer
-- **`AudioLayer`** — A convenience wrapper that pairs an `AudioStream` and `AudioFader` together and wires them automatically. Use this as the main building block for a single audio channel.
+```sh
+selene src
+stylua -c src
+luau-lsp analyze --definitions=@roblox=globalTypes.d.luau --sourcemap sourcemap.json src
+```
 
-### Effects
-Effects process the audio signal in-place. All effects support `Enable` and `Disable` (via the Roblox `Bypass` property).
+`globalTypes.d.luau` comes from the [luau-lsp repository](https://github.com/JohnnyMorganz/luau-lsp/blob/master/scripts/globalTypes.d.luau); `.lute/build.luau` downloads it.
 
-| Effect | Roblox Instance |
-|---|---|
-| `Equalizer` | `AudioEqualizer` |
-| `Reverb` | `AudioReverb` |
-| `Compressor` | `AudioCompressor` |
-| `Chorus` | `AudioChorus` |
-| `Distortion` | `AudioDistortion` |
-| `Echo` | `AudioEcho` |
-| `Flanger` | `AudioFlanger` |
-| `PitchShift` | `AudioPitchShift` |
-| `Tremolo` | `AudioTremolo` |
-| `Gate` | `AudioGate` |
-
-### Transforms
-| Component | Description |
-|---|---|
-| `AudioChannelMixer` | Mixes multiple channels into one. |
-| `AudioChannelSplitter` | Splits a signal into multiple channels. |
-
-### Output
-| Component | Description |
-|---|---|
-| `AudioDeviceOutput` | Routes audio to the player's audio device (speakers/headphones). |
-| `AudioEmitter` | 3D spatial audio emitter attached to a part in the world. |
-
-### Routing & Wire
-- **`AudioRouting`** — Manages the input/output pin state for a node. Tracks which wires are connected and exposes helpers like `WireTo`, `ClearPin`, `GetWiresAtPin`.
-- **`Wire`** — Wraps Roblox's `Wire` instance. Created automatically when you call `Routing:Wire()` or `Routing:WireTo()`.
-
-## Installation
-
-Wally Install:
-COMING SOON
-
-## Dependencies
-
-| Package | Version |
-|---|---|
-| sleitnick/component | 2.4.8 |
-| sleitnick/trove | 1.5.1 |
-| sleitnick/signal | 2.0.3 |
-| sleitnick/table-util | 1.2.1 |
-| evaera/promise | 4.0.0 |
-
-## Version
-
-`v0.0.1`
+Dependencies are listed in `wally.toml`. Two non-Wally details: [t](https://github.com/osyrisrblx/t) is vendored in `Lib/t`, and Signals is patched (`WallyPatches/`) so its React module can find React.

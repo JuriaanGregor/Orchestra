@@ -19,3 +19,6 @@ roblox.yml
 
 # Add DS Store files
 .DS_Store
+
+# Add our globalTypes.d.luau file
+globalTypes.d.luau

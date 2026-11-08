@@ -5,6 +5,11 @@ style = "dark"
 copyright = "Built with ❤️ "
 
 [[classOrder]]
+section = "Engine"
+collapsed = false
+tag = "Engine"
+
+[[classOrder]]
 section = "Base Members"
 collapsed = false
 tag = "Base"
