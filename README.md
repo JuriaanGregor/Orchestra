@@ -95,6 +95,15 @@ Orchestra.Presets:Register({
 
 Changes tween over the preset's `Transition` (0.5 seconds by default). When a chain's inserts change, it fades out briefly, is rebuilt, and fades back in. Presets own the bus faders, Master and the inserts they create, so keep player settings on the trims.
 
+Snapshots are presets pushed on top for a temporary state, such as a pause menu. The highest `Priority` wins, and a snapshot's own `Transition` is used for its push and pop:
+
+```lua
+Orchestra.Presets:Register({ Name = "PauseMenu", Transition = { Time = 0.2 }, Buses = { Music = { Volume = 0.3 } } })
+
+local paused = Orchestra.Presets:Push("PauseMenu", { Priority = 10 })
+paused:Pop()
+```
+
 > **Set `SoundService.DefaultListenerLocation` to `None` in your place.** Otherwise Roblox's default listener wires itself into Orchestra's output, and emitters without an `AudioInteractionGroup` skip the mixer. Game scripts can't set this property, so set it in Studio or in your Rojo project (`test.project.json` does this).
 
 ## Documentation
@@ -120,7 +129,7 @@ wally-package-types --sourcemap sourcemap.json Packages/   # re-export package t
 rojo serve test.project.json      # sync into Studio
 ```
 
-`test.project.json` mounts Orchestra at `ReplicatedStorage.Packages.Orchestra`, next to its dependencies (the layout Wally uses). It also adds a client script (`src/TestEnv`) that starts the engine and builds a demo scene.
+`test.project.json` mounts Orchestra at `ReplicatedStorage.Packages.Orchestra`, next to its dependencies (the layout Wally uses). It also adds a client script (`src/TestEnv`) that registers demo presets, starts the engine, builds a demo scene, and opens a debug panel: switch the platform, toggle Headphones, push and pop the demo snapshots, and watch the live volumes and insert properties.
 
 Tests are Jest specs (`*.spec.luau`) next to the code. `scripts/test.lua` runs them in Roblox; in Studio, run it from the command bar while `rojo serve` is syncing. `test.project.json` mounts a `JestGlobals` stub (`scripts/JestGlobals.luau`) in `DevPackages`: Jest intercepts requires of that name and hands back `describe`, `it` and `expect`.
 

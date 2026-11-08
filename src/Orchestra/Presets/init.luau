@@ -11,6 +11,7 @@ local Trove = Dependencies.Trove
 
 -- Import > Package
 local resolve = require("@self/resolve")
+local layers = require("@self/layers")
 local detectPlatform = require("./Utility/detectPlatform")
 local Enums = require("./Enums")
 
@@ -60,6 +61,12 @@ local tDefinition = t.strictInterface({
 	Main = t.optional(tGain),
 })
 local tPlatform = t.literal("Mobile", "Desktop", "Console")
+local tPush = t.tuple(
+	t.string,
+	t.optional(t.strictInterface({
+		Priority = t.optional(t.number),
+	}))
+)
 
 -- Copies a gain and its insert entries. Effect items are kept by reference: they're compared by identity
 local function copyGain(gain: resolve.Gain): resolve.Gain
@@ -186,6 +193,8 @@ Presets.__index = Presets
 	maps platforms to other names.
 	2. The **output profile**: a preset the player picks in settings, such as `Headphones`, see
 	[Presets:SetOutputProfile].
+	3. The **snapshots**: temporary states the game pushes and pops, such as `PauseMenu` or `Underwater`, see
+	[Presets:Push]. Lowest `Priority` first, so the highest wins.
 
 	A preset can `Extends` another: the parent is merged first. Anything no layer sets stays at volume 1, with no
 	inserts.
@@ -255,6 +264,67 @@ Presets.__index = Presets
 	The active output profile, see [Presets:SetOutputProfile].
 ]=]
 
+--[=[
+	@prop Changed RBXScriptSignal
+	@within Presets
+	@readonly
+
+	Fires after the mix is applied (at Start, and on every change), when the new mix starts tweening, not when the
+	tweens end. It passes nothing: call [Presets:GetResolved] for the mix.
+]=]
+
+--[=[
+	@class SnapshotHandle
+	@tag Engine
+
+	A pushed snapshot, returned by [Presets:Push].
+]=]
+
+--[=[
+	@prop Name string
+	@within SnapshotHandle
+	@readonly
+
+	The snapshot's preset name.
+]=]
+
+--[=[
+	@prop Priority number
+	@within SnapshotHandle
+	@readonly
+
+	Its priority: higher priorities are merged later, so they win.
+]=]
+
+--[=[
+	@prop Active boolean
+	@within SnapshotHandle
+	@readonly
+
+	Whether it's still pushed.
+]=]
+
+--[=[
+	@prop Applied Promise
+	@within SnapshotHandle
+	@readonly
+
+	Resolves when the push has finished tweening; right away before [Orchestra:Start].
+]=]
+
+--[=[
+	@function Pop
+	@within SnapshotHandle
+
+	Takes the snapshot out of the mix and tweens back. Popping twice does nothing.
+
+	@return Promise -- Resolves when the tweens complete
+]=]
+
+type SnapshotEntry = layers.Snapshot & {
+	Handle: any,
+}
+
 function Presets.new(engine: any)
 	local self = {}
 	self.ClassName = "Presets"
@@ -268,6 +338,13 @@ function Presets.new(engine: any)
 	self._started = false
 	-- The inserts each chain got from presets, by chain key (a bus name, or Main): see _applyInserts
 	self._chains = {} :: { [string]: ChainState }
+
+	-- Pushed snapshots, in push order
+	self._snapshots = {} :: { SnapshotEntry }
+	self._pushCount = 0
+
+	self._changedEvent = Instance.new("BindableEvent")
+	self.Changed = self._changedEvent.Event
 
 	self.Platform = nil :: Platform?
 	self.OutputProfile = nil :: string?
@@ -331,8 +408,8 @@ end
 
 -- Applies the mix with tweens. If the new mix doesn't resolve, `restore` undoes the change that caused it and the
 -- error is raised: the live mix is untouched, since every check runs before anything changes
-function Presets:_applyOrRestore(restore: () -> (), context: string)
-	local ok, result = pcall(self._apply, self, false)
+function Presets:_applyOrRestore(restore: () -> (), context: string, transition: resolve.Transition?)
+	local ok, result = pcall(self._apply, self, false, transition)
 	if not ok then
 		restore()
 		error(string.format("%s - %s", context, tostring(result)), 3)
@@ -355,23 +432,148 @@ end
 --[=[
 	@within Presets
 	Returns the preset names that make up the mix, in merge order, before `Extends` chains are expanded: the platform
-	preset (if any) and the output profile (if any).
+	preset (if any), the output profile (if any), then the snapshots.
 
 	@return { string }
 ]=]
 function Presets:GetLayers(): { string }
-	local layers = {}
+	return layers(self:_platformPresetName(), self.OutputProfile, self._snapshots)
+end
 
-	local platformPreset = self:_platformPresetName()
-	if platformPreset then
-		table.insert(layers, platformPreset)
+--[=[
+	@within Presets
+	Pushes a snapshot: a preset merged on top of everything else until it's popped, for a temporary state such as a
+	pause menu or being underwater. Higher `Priority` wins (default 0); on a tie, the later push wins. Pushing a
+	snapshot that's already pushed keeps one copy in the mix, at the highest place.
+
+	The push and the pop tween over the snapshot's own `Transition` when it sets one, otherwise over the mix's.
+	Before [Orchestra:Start], the snapshot waits and is applied by Start. Errors if no preset has that name, or the
+	new mix doesn't resolve (the snapshot is then not pushed).
+
+	A snapshot is usually a small preset without `Extends`: extending `Base` would merge Base over the platform
+	preset again.
+
+	```lua
+	local paused = Orchestra.Presets:Push("PauseMenu", { Priority = 10 })
+	-- later
+	paused:Pop()
+	```
+
+	@param name string -- A registered preset
+	@param options { Priority: number? }?
+	@return SnapshotHandle
+]=]
+function Presets:Push(name: string, options: { Priority: number? }?)
+	assert(tPush(name, options))
+
+	if not self._registry[name] then
+		error(string.format("Presets:Push - Unknown preset '%s'", name), 2)
 	end
 
-	if self.OutputProfile then
-		table.insert(layers, self.OutputProfile)
+	local order: number = (self._pushCount :: number) + 1
+	self._pushCount = order
+
+	local handle = {
+		Name = name,
+		Priority = if options and options.Priority then options.Priority else 0,
+		Active = true,
+		Applied = nil :: any,
+	}
+
+	local entry: SnapshotEntry = {
+		Name = name,
+		Priority = handle.Priority,
+		Order = order,
+		Handle = handle,
+	}
+
+	local function remove()
+		local index = table.find(self._snapshots, entry)
+		if index then
+			table.remove(self._snapshots, index)
+		end
 	end
 
-	return layers
+	function handle.Pop(_self: any)
+		if not handle.Active then
+			return Promise.resolve()
+		end
+
+		handle.Active = false
+		remove()
+
+		if not self._started then
+			return Promise.resolve()
+		end
+
+		return self:_applyOrRestore(function()
+			handle.Active = true
+			table.insert(self._snapshots, entry)
+		end, "SnapshotHandle:Pop", self:_transitionOf(name))
+	end
+
+	table.insert(self._snapshots, entry)
+
+	if self._started then
+		handle.Applied = self:_applyOrRestore(function()
+			handle.Active = false
+			remove()
+		end, "Presets:Push", self:_transitionOf(name))
+	else
+		handle.Applied = Promise.resolve()
+	end
+
+	return handle
+end
+
+--[=[
+	@within Presets
+	Returns the pushed snapshots, in merge order (the last one wins).
+
+	@return { { Name: string, Priority: number } }
+]=]
+function Presets:GetSnapshots(): { { Name: string, Priority: number } }
+	-- A snapshot pushed more than once is listed once, with the highest priority it was pushed with
+	local highest: { [string]: number } = {}
+	for _, entry in self._snapshots do
+		highest[entry.Name] = math.max(highest[entry.Name] or -math.huge, entry.Priority)
+	end
+
+	local result = {}
+	for _, name in layers(nil, nil, self._snapshots) do
+		table.insert(result, { Name = name, Priority = highest[name] })
+	end
+	return result
+end
+
+-- The Transition a preset sets itself, merged up its Extends chain (the preset's own fields win), or nil if none does
+function Presets:_transitionOf(name: string): resolve.Transition?
+	local merged: { [string]: any } = {}
+	local found = false
+	local current: string? = name
+	local visited: { [string]: boolean } = {}
+
+	while current and not visited[current] do
+		visited[current] = true
+
+		local definition = self._registry[current]
+		if not definition then
+			break
+		end
+
+		if definition.Transition then
+			found = true
+			for key, value in definition.Transition :: any do
+				if merged[key] == nil then
+					merged[key] = value
+				end
+			end
+		end
+
+		current = definition.Extends
+	end
+
+	return if found then merged :: any else nil
 end
 
 --[=[
@@ -499,8 +701,9 @@ function Presets:_start(platform: Platform?, platformPresets: { [string]: string
 	self:_apply(true)
 end
 
--- Resolves the layers, then sends every bus Fader and Master to its volume and every chain to its inserts
-function Presets:_apply(instant: boolean)
+-- Resolves the layers, then sends every bus Fader and Master to its volume and every chain to its inserts.
+-- `transitionOverride` replaces the mix's Transition fields it sets, for a snapshot's push and pop.
+function Presets:_apply(instant: boolean, transitionOverride: resolve.Transition?)
 	local engine = self._engine
 	local resolved = resolve(self._registry, self:GetLayers(), engine:GetBusNames())
 
@@ -523,7 +726,13 @@ function Presets:_apply(instant: boolean)
 
 	self._resolved = resolved
 
-	local transition = resolved.Transition
+	local transition = table.clone(resolved.Transition)
+	if transitionOverride then
+		for key, value in transitionOverride :: any do
+			(transition :: any)[key] = value
+		end
+	end
+
 	local snap = instant or transition.Time == 0
 	local tweenInfo = TweenInfo.new(
 		transition.Time,
@@ -566,6 +775,9 @@ function Presets:_apply(instant: boolean)
 	end
 
 	sendInserts("Main", engine.MainInserts, resolved.Main.Inserts)
+
+	-- No arguments: a BindableEvent copies them, and Effect items are cyclic tables
+	self._changedEvent:Fire()
 
 	return Promise.all(promises)
 end
