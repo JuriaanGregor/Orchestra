@@ -1,22 +1,51 @@
 --!strict
 
+-- Roblox Services
+local TweenService = game:GetService("TweenService")
+
 -- Import > Packages
 local Dependencies = require("./Dependencies")
 local t = Dependencies.t
 local Promise = Dependencies.Promise
+local Trove = Dependencies.Trove
 
 -- Import > Package
 local resolve = require("@self/resolve")
 local detectPlatform = require("./Utility/detectPlatform")
+local Enums = require("./Enums")
 
 export type Definition = resolve.Definition
 export type Resolved = resolve.Resolved
+export type ResolvedInsert = resolve.ResolvedInsert
+export type InsertEntry = resolve.InsertEntry
 export type Platform = detectPlatform.Platform
+
+-- How long a chain fades out (and back in) while its inserts are rebuilt
+local DIP_TIME = 0.05
+
+-- Properties a preset can't set on an insert: the chain owns these
+local RESERVED_PROPS = { Name = true, Parent = true, Archivable = true }
 
 -- t
 local tVolume = t.numberConstrained(0, 3)
+local function tInsertType(value: any): (boolean, string?)
+	if Enums.Effect:BelongsTo(value) or Enums.Transform:BelongsTo(value) then
+		return true
+	end
+
+	return false, "Effect must be an Enums.Effect or Enums.Transform item"
+end
+local tInsertEntry = t.strictInterface({
+	Id = t.string,
+	Effect = t.optional(tInsertType),
+	Props = t.optional(t.map(t.string, t.any)),
+	Bypass = t.optional(t.boolean),
+	Remove = t.optional(t.literal(true)),
+	After = t.optional(t.string),
+})
 local tGain = t.strictInterface({
 	Volume = t.optional(tVolume),
+	Inserts = t.optional(t.array(tInsertEntry)),
 })
 local tTransition = t.strictInterface({
 	Time = t.optional(t.numberMin(0)),
@@ -32,6 +61,25 @@ local tDefinition = t.strictInterface({
 })
 local tPlatform = t.literal("Mobile", "Desktop", "Console")
 
+-- Copies a gain and its insert entries. Effect items are kept by reference: they're compared by identity
+local function copyGain(gain: resolve.Gain): resolve.Gain
+	local copy = table.clone(gain)
+
+	if gain.Inserts then
+		local inserts = {}
+		for _, entry in gain.Inserts do
+			local entryCopy = table.clone(entry)
+			if entry.Props then
+				entryCopy.Props = table.clone(entry.Props)
+			end
+			table.insert(inserts, entryCopy)
+		end
+		copy.Inserts = inserts
+	end
+
+	return copy
+end
+
 -- Copies a definition so later changes to the caller's table don't leak in
 local function copyDefinition(definition: Definition): Definition
 	local copy = table.clone(definition)
@@ -41,18 +89,83 @@ local function copyDefinition(definition: Definition): Definition
 	end
 
 	if definition.Main then
-		copy.Main = table.clone(definition.Main)
+		copy.Main = copyGain(definition.Main)
 	end
 
 	if definition.Buses then
 		local buses = {}
 		for bus, gain in definition.Buses do
-			buses[bus] = table.clone(gain)
+			buses[bus] = copyGain(gain)
 		end
 		copy.Buses = buses
 	end
 
 	return copy
+end
+
+---------------------------------------------------------------------
+-- Insert properties
+
+-- The Roblox class an Effect or Transform item creates, for example Enums.Effect.Reverb -> AudioReverb
+local function classNameOf(effect: any): string
+	return "Audio" .. effect.Name
+end
+
+-- One unparented instance per class, to read property names and default values from
+local templates: { [string]: Instance } = {}
+
+-- Returns whether the class has the property, and its default value
+local function defaultOf(className: string, key: string): (boolean, any)
+	local template = templates[className]
+	if not template then
+		template = Instance.new(className :: any)
+		templates[className] = template
+	end
+
+	return pcall(function()
+		return (template :: any)[key]
+	end)
+end
+
+-- Errors if a property doesn't exist on the insert's class, is reserved, or gets a value of the wrong type
+local function checkProps(effect: any, props: { [string]: any }, context: string)
+	local className = classNameOf(effect)
+
+	for key, value in props do
+		if RESERVED_PROPS[key] then
+			error(string.format("%s: '%s' can't be set by a preset", context, key), 0)
+		end
+
+		local exists, default = defaultOf(className, key)
+		if not exists then
+			error(string.format("%s: %s has no property '%s'", context, className, key), 0)
+		end
+
+		if typeof(value) ~= typeof(default) then
+			error(
+				string.format("%s: %s.%s takes a %s, got a %s", context, className, key, typeof(default), typeof(value)),
+				0
+			)
+		end
+	end
+end
+
+-- Register-time checks on one insert list: unique Ids, and the props of entries that name their Effect
+local function checkEntries(entries: { InsertEntry }, presetName: string, where: string)
+	local seen = {}
+
+	for _, entry in entries do
+		local context = string.format("Preset '%s', %s, insert '%s'", presetName, where, entry.Id)
+
+		if seen[entry.Id] then
+			error(string.format("%s: Id is listed twice", context), 0)
+		end
+		seen[entry.Id] = true
+
+		if entry.Effect and entry.Props then
+			checkProps(entry.Effect, entry.Props, context)
+		end
+	end
 end
 
 ---------------------------------------------------------------------
@@ -63,8 +176,8 @@ Presets.__index = Presets
 	@class Presets
 	@tag Engine
 
-	Presets describe a mix as data: a volume per mix bus and for the Main layer (Master). Reached through
-	`Orchestra.Presets`.
+	Presets describe a mix as data: a volume and a list of inserts (effects and transforms) per mix bus and for the
+	Main layer. Reached through `Orchestra.Presets`.
 
 	The active mix is merged from these layers, later ones winning:
 
@@ -74,26 +187,56 @@ Presets.__index = Presets
 	2. The **output profile**: a preset the player picks in settings, such as `Headphones`, see
 	[Presets:SetOutputProfile].
 
-	A preset can `Extends` another: the parent is merged first. Anything no layer sets stays at volume 1.
+	A preset can `Extends` another: the parent is merged first. Anything no layer sets stays at volume 1, with no
+	inserts.
 
 	```lua
+	local Effect = Orchestra.Enums.Effect
+	local Transform = Orchestra.Enums.Transform
+
 	Orchestra.Presets:Register({
 		Name = "Base",
 		Transition = { Time = 0.5 },
-		Buses = { Music = { Volume = 0.8 }, Dialogue = { Volume = 1 } },
+		Buses = {
+			Music = { Volume = 0.8, Inserts = {
+				{ Id = "Tone", Effect = Effect.Equalizer, Props = { LowGain = 0 } },
+			} },
+		},
+		Main = { Inserts = {
+			{ Id = "Glue", Effect = Effect.Compressor, Props = { Ratio = 2 } },
+			{ Id = "Ceiling", Effect = Transform.Limiter },
+		} },
 	})
 
 	Orchestra.Presets:Register({
 		Name = "Mobile",
 		Extends = "Base",
-		Buses = { Dialogue = { Volume = 1.2 } },
+		Buses = {
+			Music = { Inserts = { { Id = "Tone", Props = { LowGain = -6 } } } },
+		},
+		Main = { Inserts = {
+			{ Id = "Glue", Props = { Ratio = 4 } },
+			{ Id = "Presence", Effect = Effect.Equalizer, After = "Glue", Props = { MidGain = 2 } },
+		} },
 	})
 
 	Orchestra:Start() -- applies Mobile on phones, Base elsewhere
 	```
 
-	Presets own the mix bus Faders and Master: applying a preset tweens them. Use [Orchestra:SetPlayerVolume] for
-	player settings, and your own Faders for game logic.
+	**Inserts** merge by `Id`. Each entry is `{ Id, Effect?, Props?, Bypass?, Remove?, After? }`:
+
+	- A new `Id` adds an insert: `Effect` is an [Enums.Effect] or [Enums.Transform] item, `Props` are properties of
+	its instance (`AudioEqualizer`, `AudioLimiter`, ...), placed after the insert named by `After` or at the end.
+	- A known `Id` changes its `Props`, or turns it off with `Bypass = true` (the instance's `Bypass` property).
+	- `Remove = true` takes it out.
+	- An insert keeps the type and position it was added with. To change either, remove it and add a new `Id`.
+
+	When the mix changes, numeric properties tween over the `Transition`; other properties switch when it ends. If the
+	inserts themselves change, the chain fades out for 0.05 seconds, is rebuilt, and fades back in. Inserts are reused
+	by `Id`, and a property no layer sets anymore goes back to its default.
+
+	Presets own the mix bus Faders, Master, and the inserts they create. Use [Orchestra:SetPlayerVolume] for player
+	settings, and your own Faders for game logic. Inserts you add to a chain yourself stay after the preset's.
 ]=]
 
 --[=[
@@ -123,6 +266,8 @@ function Presets.new(engine: any)
 	self._applied = setmetatable({} :: { [any]: number }, { __mode = "k" })
 	self._resolved = nil :: Resolved?
 	self._started = false
+	-- The inserts each chain got from presets, by chain key (a bus name, or Main): see _applyInserts
+	self._chains = {} :: { [string]: ChainState }
 
 	self.Platform = nil :: Platform?
 	self.OutputProfile = nil :: string?
@@ -136,12 +281,16 @@ end
 
 --[=[
 	@within Presets
-	Registers a preset, replacing any preset with the same name. Errors if the definition is malformed, for example an
-	unknown field or a volume outside 0 - 3. Bus names and `Extends` are checked when the preset is applied.
+	Registers a preset, replacing any preset with the same name. Errors if the definition is malformed: an unknown
+	field, a volume outside 0 - 3, an insert `Id` listed twice in one list, or a property its `Effect` doesn't have.
+	Bus names, `Extends`, and the merge rules for inserts are checked when the preset is applied.
 
-	After [Orchestra:Start], the mix is applied again, so re-registering a preset updates the live mix.
+	After [Orchestra:Start], the mix is applied again, so re-registering a preset updates the live mix. If the new mix
+	doesn't resolve (for example an override names a property its insert doesn't have), the previous definition is put
+	back, the live mix is left as it was, and it errors. [Presets:SetPlatform] and [Presets:SetOutputProfile] do the
+	same.
 
-	@param definition { Name: string, Extends: string?, Transition: { Time: number?, EasingStyle: Enum.EasingStyle?, EasingDirection: Enum.EasingDirection? }?, Buses: { [string]: { Volume: number? } }?, Main: { Volume: number? }? }
+	@param definition { Name: string, Extends: string?, Transition: { Time: number?, EasingStyle: Enum.EasingStyle?, EasingDirection: Enum.EasingDirection? }?, Buses: { [string]: { Volume: number?, Inserts: { InsertEntry }? } }?, Main: { Volume: number?, Inserts: { InsertEntry }? }? }
 ]=]
 function Presets:Register(definition: Definition)
 	local ok, message = tDefinition(definition)
@@ -152,11 +301,44 @@ function Presets:Register(definition: Definition)
 		error(string.format("Presets:Register - Invalid preset '%s': %s", name, tostring(message)), 2)
 	end
 
-	self._registry[definition.Name] = table.freeze(copyDefinition(definition))
+	local checked, checkError = pcall(function()
+		if definition.Buses then
+			for bus, gain in definition.Buses do
+				if gain.Inserts then
+					checkEntries(gain.Inserts, definition.Name, string.format("bus '%s'", bus))
+				end
+			end
+		end
+
+		if definition.Main and definition.Main.Inserts then
+			checkEntries(definition.Main.Inserts, definition.Name, "Main")
+		end
+	end)
+	if not checked then
+		error("Presets:Register - " .. tostring(checkError), 2)
+	end
+
+	local name = definition.Name
+	local previous = self._registry[name]
+	self._registry[name] = table.freeze(copyDefinition(definition))
 
 	if self._started then
-		self:_apply(false)
+		self:_applyOrRestore(function()
+			self._registry[name] = previous
+		end, "Presets:Register")
 	end
+end
+
+-- Applies the mix with tweens. If the new mix doesn't resolve, `restore` undoes the change that caused it and the
+-- error is raised: the live mix is untouched, since every check runs before anything changes
+function Presets:_applyOrRestore(restore: () -> (), context: string)
+	local ok, result = pcall(self._apply, self, false)
+	if not ok then
+		restore()
+		error(string.format("%s - %s", context, tostring(result)), 3)
+	end
+
+	return result
 end
 
 --[=[
@@ -194,10 +376,10 @@ end
 
 --[=[
 	@within Presets
-	Returns the mix as last applied: the merged layers (with `Extends` chains expanded), every bus volume, the Main
-	volume and the transition. `nil` before [Orchestra:Start]. The table is a copy.
+	Returns the mix as last applied: the merged layers (with `Extends` chains expanded), every bus and the Main layer
+	with its volume and inserts, and the transition. `nil` before [Orchestra:Start]. The table is a copy.
 
-	@return { Layers: { string }, Buses: { [string]: { Volume: number } }, Main: { Volume: number }, Transition: { Time: number } }?
+	@return { Layers: { string }, Buses: { [string]: { Volume: number, Inserts: { { Id: string, Effect: EnumItem, Props: { [string]: any } } } } }, Main: { Volume: number, Inserts: { { Id: string, Effect: EnumItem, Props: { [string]: any } } } }, Transition: { Time: number } }?
 ]=]
 function Presets:GetResolved(): Resolved?
 	local resolved = self._resolved
@@ -205,15 +387,28 @@ function Presets:GetResolved(): Resolved?
 		return nil
 	end
 
+	local function copy(gain: resolve.ResolvedGain): resolve.ResolvedGain
+		local inserts = {}
+		for _, insert in gain.Inserts do
+			table.insert(inserts, {
+				Id = insert.Id,
+				Effect = insert.Effect,
+				Props = table.clone(insert.Props),
+				Sources = table.clone(insert.Sources),
+			})
+		end
+		return { Volume = gain.Volume, Inserts = inserts }
+	end
+
 	local buses = {}
 	for bus, gain in resolved.Buses do
-		buses[bus] = table.clone(gain)
+		buses[bus] = copy(gain)
 	end
 
 	return {
 		Layers = table.clone(resolved.Layers),
 		Buses = buses,
-		Main = table.clone(resolved.Main),
+		Main = copy(resolved.Main),
 		Transition = table.clone(resolved.Transition),
 	}
 end
@@ -229,13 +424,16 @@ end
 function Presets:SetPlatform(platform: Platform)
 	assert(tPlatform(platform))
 
+	local previous = self.Platform
 	self.Platform = platform
 
 	if not self._started then
 		return Promise.resolve()
 	end
 
-	return self:_apply(false)
+	return self:_applyOrRestore(function()
+		self.Platform = previous
+	end, "Presets:SetPlatform")
 end
 
 --[=[
@@ -257,13 +455,16 @@ function Presets:SetOutputProfile(name: string?)
 		error(string.format("Presets:SetOutputProfile - Unknown preset '%s'", name), 2)
 	end
 
+	local previous = self.OutputProfile
 	self.OutputProfile = name
 
 	if not self._started then
 		return Promise.resolve()
 	end
 
-	return self:_apply(false)
+	return self:_applyOrRestore(function()
+		self.OutputProfile = previous
+	end, "Presets:SetOutputProfile")
 end
 
 -- The preset for the current platform: the mapped name, else one named after the platform, else Base
@@ -298,10 +499,28 @@ function Presets:_start(platform: Platform?, platformPresets: { [string]: string
 	self:_apply(true)
 end
 
--- Resolves the layers and sends every bus Fader and Master to its volume
+-- Resolves the layers, then sends every bus Fader and Master to its volume and every chain to its inserts
 function Presets:_apply(instant: boolean)
 	local engine = self._engine
 	local resolved = resolve(self._registry, self:GetLayers(), engine:GetBusNames())
+
+	-- Check every insert's props before changing anything: entries that only override props are checked here
+	local function checkGain(gain: resolve.ResolvedGain, where: string)
+		for _, insert in gain.Inserts do
+			-- One prop at a time, so the error names the preset that set it
+			for key, value in insert.Props do
+				local context =
+					string.format("Preset '%s', %s, insert '%s'", insert.Sources[key] or "?", where, insert.Id)
+				checkProps(insert.Effect, { [key] = value }, context)
+			end
+		end
+	end
+
+	for bus, gain in resolved.Buses do
+		checkGain(gain, string.format("bus '%s'", bus))
+	end
+	checkGain(resolved.Main, "Main")
+
 	self._resolved = resolved
 
 	local transition = resolved.Transition
@@ -335,7 +554,233 @@ function Presets:_apply(instant: boolean)
 
 	send(engine.Master, resolved.Main.Volume)
 
+	local function sendInserts(key: string, chain: any, inserts: { ResolvedInsert })
+		local promise = self:_applyInserts(key, chain, inserts, if snap then nil else tweenInfo)
+		if promise then
+			table.insert(promises, promise)
+		end
+	end
+
+	for bus, gain in resolved.Buses do
+		sendInserts("Bus:" .. bus, engine.Inserts[bus], gain.Inserts)
+	end
+
+	sendInserts("Main", engine.MainInserts, resolved.Main.Inserts)
+
 	return Promise.all(promises)
+end
+
+---------------------------------------------------------------------
+-- Inserts
+
+type LiveInsert = {
+	Id: string,
+	Effect: any,
+	Component: any,
+	-- The props the presets set on it, so props that are no longer set go back to their default
+	Props: { [string]: any },
+}
+
+type ChainState = {
+	-- Live inserts in chain order
+	Inserts: { LiveInsert },
+	-- Cleaned on every apply: cancels the previous apply's dip and property tweens on this chain
+	Trove: any,
+}
+
+local function isAlive(live: LiveInsert): boolean
+	return live.Component.Instance.Parent ~= nil
+end
+
+-- Sends an insert to `props`. Props set before but not now go back to their class default. With `tweenInfo`, numbers
+-- tween and everything else switches at the end; without it, all switch now.
+function Presets:_setProps(state: ChainState, live: LiveInsert, props: { [string]: any }, tweenInfo: TweenInfo?)
+	local instance = live.Component.Instance :: any
+	local className = instance.ClassName
+
+	local targets = {}
+	for key in live.Props do
+		local _, default = defaultOf(className, key)
+		targets[key] = default
+	end
+	for key, value in props do
+		targets[key] = value
+	end
+	live.Props = table.clone(props)
+
+	local tweened = {}
+	local later = {}
+	for key, value in targets do
+		if instance[key] == value then
+			continue
+		end
+
+		if tweenInfo and typeof(value) == "number" then
+			tweened[key] = value
+		else
+			later[key] = value
+		end
+	end
+
+	local function setLater()
+		for key, value in later do
+			instance[key] = value
+		end
+	end
+
+	if not tweenInfo or next(tweened) == nil then
+		setLater()
+		return nil
+	end
+
+	local promise = Promise.new(function(resolvePromise, _reject, onCancel)
+		local tween = TweenService:Create(instance, tweenInfo, tweened)
+
+		local connection
+		connection = tween.Completed:Connect(function(playbackState: Enum.PlaybackState)
+			connection:Disconnect()
+			tween:Destroy()
+
+			if playbackState == Enum.PlaybackState.Completed then
+				setLater()
+				resolvePromise()
+			end
+		end)
+
+		onCancel(function()
+			connection:Disconnect()
+			tween:Cancel()
+			tween:Destroy()
+		end)
+
+		tween:Play()
+	end)
+
+	return state.Trove:AddPromise(promise)
+end
+
+-- Creates the component for an insert: an effect or a transform, named after its Id
+function Presets:_createInsert(insert: ResolvedInsert, chain: any): any
+	local engine = self._engine
+	local factory: any = if Enums.Effect:BelongsTo(insert.Effect) then engine.Effects else engine.Transforms
+
+	return factory.new(insert.Effect, chain.Instance, { Name = insert.Id })
+end
+
+-- Brings a chain to `inserts`. Same Ids, types and order: props tween in place. Otherwise the chain dips, is rebuilt
+-- (reusing inserts by Id and type), and comes back. Without `tweenInfo`, everything happens now.
+function Presets:_applyInserts(key: string, chain: any, inserts: { ResolvedInsert }, tweenInfo: TweenInfo?)
+	local state = self._chains[key]
+	if not state then
+		-- Presets never put inserts on this chain: leave it alone
+		if #inserts == 0 then
+			return nil
+		end
+
+		state = { Inserts = {}, Trove = Trove.new() }
+		self._chains[key] = state
+	end
+
+	local chainState = state :: ChainState
+	chainState.Trove:Clean()
+
+	local sameShape = #inserts == #chainState.Inserts
+	if sameShape then
+		for index, insert in inserts do
+			local live = chainState.Inserts[index]
+			if live.Id ~= insert.Id or live.Effect ~= insert.Effect or not isAlive(live) then
+				sameShape = false
+				break
+			end
+		end
+	end
+
+	if sameShape then
+		local promises = {}
+
+		for index, insert in inserts do
+			local promise = self:_setProps(chainState, chainState.Inserts[index], insert.Props, tweenInfo)
+			if promise then
+				table.insert(promises, promise)
+			end
+		end
+
+		-- An earlier apply was interrupted mid-dip
+		if chain.Fader.Instance.Volume ~= 1 then
+			if tweenInfo then
+				table.insert(promises, chain.Fader:Tween(1, TweenInfo.new(DIP_TIME)))
+			else
+				chain.Fader:Set(1)
+			end
+		end
+
+		return Promise.all(promises)
+	end
+
+	local function rebuild()
+		local previous: { [string]: LiveInsert } = {}
+		local owned: { [any]: boolean } = {}
+		for _, live in chainState.Inserts do
+			previous[live.Id] = live
+			owned[live.Component] = true
+		end
+
+		local nextInserts: { LiveInsert } = {}
+		local components = {}
+
+		for _, insert in inserts do
+			local live = previous[insert.Id]
+			if live and live.Effect == insert.Effect and isAlive(live) then
+				previous[insert.Id] = nil
+			else
+				live = {
+					Id = insert.Id,
+					Effect = insert.Effect,
+					Component = self:_createInsert(insert, chain),
+					Props = {},
+				}
+			end
+
+			local liveInsert = live :: LiveInsert
+			self:_setProps(chainState, liveInsert, insert.Props, nil)
+			table.insert(nextInserts, liveInsert)
+			table.insert(components, liveInsert.Component)
+		end
+
+		-- Inserts added by hand stay after the preset's
+		for _, insert in chain:GetInserts() do
+			if not owned[insert] then
+				table.insert(components, insert)
+			end
+		end
+
+		local removed = chain:SetInserts(components)
+		for _, insert in removed do
+			insert:Destroy()
+		end
+
+		-- Ones that were destroyed elsewhere are no longer in the chain, so SetInserts didn't return them
+		for _, live in previous do
+			if isAlive(live) then
+				live.Component:Destroy()
+			end
+		end
+
+		chainState.Inserts = nextInserts
+	end
+
+	if not tweenInfo then
+		rebuild()
+		chain.Fader:Set(1)
+		return nil
+	end
+
+	local dipInfo = TweenInfo.new(DIP_TIME, Enum.EasingStyle.Linear)
+
+	return chainState.Trove:AddPromise(chain.Fader:Tween(0, dipInfo):andThen(function()
+		rebuild()
+		return chain.Fader:Tween(1, dipInfo)
+	end))
 end
 
 return Presets

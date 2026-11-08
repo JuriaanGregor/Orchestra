@@ -80,6 +80,14 @@ InsertChain.__index = InsertChain
 	The `Out` Fader's [Routing], used to wire the chain onwards.
 ]=]
 
+--[=[
+	@prop Fader Fader
+	@within InsertChain
+	@readonly
+
+	The `Out` [Fader]. It stays at volume 1, except while [Presets] dip the chain to rebuild it.
+]=]
+
 local tInsertChain = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 
 --[=[
@@ -116,6 +124,7 @@ function InsertChain.new(parent: Instance, props: { [string]: any }?)
 	self.In = inFader.Instance
 	self.Out = outFader.Instance
 	self.Routing = outFader.Routing
+	self.Fader = outFader
 
 	-- Destroying the folder destroys the chain, inserts included
 	self._trove:Add(folder)
@@ -201,8 +210,58 @@ function InsertChain:Add(insert: any, index: number?)
 	end
 
 	table.insert(self._inserts, position, insert)
+	self:_attach(insert)
+	self:_rewire()
 
-	-- Destroying the insert takes it out of the chain, and the chain heals around it
+	return insert
+end
+
+--[=[
+	@within InsertChain
+	Replaces the inserts with `inserts`, in that order, and rewires the chain once. Inserts already in the chain keep
+	their instances; inserts left out are removed but not destroyed, and returned.
+	Errors if an item isn't an insert or is listed twice.
+
+	@param inserts { Effect | Transform | Fader }
+	@return { Effect | Transform | Fader } -- The inserts that were removed
+]=]
+function InsertChain:SetInserts(inserts: { any }): { any }
+	assert(t.array(t.any)(inserts))
+	assert(not self._destroyed, "InsertChain:SetInserts - The chain is destroyed")
+
+	for index, insert in inserts do
+		assert(
+			isInsert(insert),
+			"InsertChain:SetInserts - The insert needs an In and Out audio instance, and a Destroy method"
+		)
+
+		if table.find(inserts, insert) ~= index then
+			error("InsertChain:SetInserts - An insert is listed twice")
+		end
+	end
+
+	local removed = {}
+	for _, insert in table.clone(self._inserts) do
+		if not table.find(inserts, insert) then
+			self:_detach(insert)
+			table.insert(removed, insert)
+		end
+	end
+
+	for _, insert in inserts do
+		if not self._insertTroves[insert] then
+			self:_attach(insert)
+		end
+	end
+
+	self._inserts = table.clone(inserts)
+	self:_rewire()
+
+	return removed
+end
+
+-- Watches an insert: destroying it takes it out of the chain, and the chain heals around it
+function InsertChain:_attach(insert: any)
 	local insertTrove = self._trove:Extend()
 	self._insertTroves[insert] = insertTrove
 
@@ -220,10 +279,6 @@ function InsertChain:Add(insert: any, index: number?)
 	if insert.Out ~= insert.In then
 		insertTrove:Connect(insert.Out.Destroying, onDestroying)
 	end
-
-	self:_rewire()
-
-	return insert
 end
 
 --[=[

@@ -70,7 +70,30 @@ Orchestra:Start({
 Orchestra.Presets:SetOutputProfile("Headphones") -- from your settings menu; nil clears it
 ```
 
-Changes tween over the preset's `Transition` (0.5 seconds by default). Presets own the bus faders and Master, so keep player settings on the trims.
+Presets can also put inserts on a bus or on the Main layer. Entries merge by `Id`: a later preset retunes `Props`, turns one off with `Bypass = true`, adds a new one (placed with `After`, or at the end), or takes one out with `Remove = true`:
+
+```lua
+local Effect, Transform = Orchestra.Enums.Effect, Orchestra.Enums.Transform
+
+Orchestra.Presets:Register({
+	Name = "Base",
+	Main = { Inserts = {
+		{ Id = "Glue", Effect = Effect.Compressor, Props = { Ratio = 2 } },
+		{ Id = "Ceiling", Effect = Transform.Limiter },
+	} },
+})
+
+Orchestra.Presets:Register({
+	Name = "Mobile",
+	Extends = "Base",
+	Main = { Inserts = {
+		{ Id = "Glue", Props = { Ratio = 4 } },
+		{ Id = "Presence", Effect = Effect.Equalizer, After = "Glue", Props = { MidGain = 2 } },
+	} },
+})
+```
+
+Changes tween over the preset's `Transition` (0.5 seconds by default). When a chain's inserts change, it fades out briefly, is rebuilt, and fades back in. Presets own the bus faders, Master and the inserts they create, so keep player settings on the trims.
 
 > **Set `SoundService.DefaultListenerLocation` to `None` in your place.** Otherwise Roblox's default listener wires itself into Orchestra's output, and emitters without an `AudioInteractionGroup` skip the mixer. Game scripts can't set this property, so set it in Studio or in your Rojo project (`test.project.json` does this).
 
