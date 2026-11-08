@@ -5,24 +5,33 @@
 		"$className": "DataModel",
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
-            "Orchestra": {
-                "$path": "src/Orchestra",
-                "Packages": {
-                    "$className": "Folder",
-                    "$path": "Packages",
-                    "t": {
-                        "$path": "Lib/t"
-                    }
+            "Packages": {
+                "$path": "Packages",
+                "t": {
+                    "$path": "Lib/t"
                 },
-                "DevPackages": {
-                    "$path": "DevPackages"
+                "Orchestra": {
+                    "$path": "src/Orchestra"
                 }
+            },
+
+            "DevPackages": {
+                "$path": "DevPackages"
             }
-		}, 
-        "ServerScriptService": {
-            "$className": "ServerScriptService",
-            "TestEnv": {
-                "$path": "src/TestEnv"
+		},
+        "SoundService": {
+            "$className": "SoundService",
+            "$properties": {
+                "DefaultListenerLocation": "None"
+            }
+        },
+        "StarterPlayer": {
+            "$className": "StarterPlayer",
+            "StarterPlayerScripts": {
+                "$className": "StarterPlayerScripts",
+                "TestClient": {
+                    "$path": "src/TestEnv"
+                }
             }
         }
     }

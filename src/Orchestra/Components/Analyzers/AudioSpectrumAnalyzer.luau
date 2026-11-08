@@ -1,19 +1,18 @@
 --!strict
 -- Roblox Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 -- Imports > Packages
-local Package = ReplicatedStorage:WaitForChild("Audio")
-local t = require(Package.Packages.t)
-local Trove = require(Package.Packages.Trove)
-local Signal = require(Package.Packages.Signal)
+local Dependencies = require("../../Dependencies")
+local t = Dependencies.t
+local Trove = Dependencies.Trove
+local Signals = Dependencies.Signals
 
 -- Imports > Package
-local applyInstanceProps = require(Package.Instances.applyInstanceProps)
+local applyInstanceProps = require("../../Instances/applyInstanceProps")
 
 -- Types
-local Types = require(Package.Types)
+local Types = require("../../Types")
 
 -- Functions
 local tAudioAnalyzer = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
@@ -29,6 +28,22 @@ local function CreateAudioAnalyzer(parent: Instance, props: { [string]: any }?):
 
 	-- Return our object
 	return audioAnalyzer
+end
+
+-- Creates a signal that is updated with `read()` every frame. Returns the getter and a function to stop observing.
+local function observe<T>(trove: any, read: () -> T): (Dependencies.Getter<T>, () -> ())
+	local get, set = Signals.createSignal(read())
+
+	local connection = RunService.RenderStepped:Connect(function()
+		set(read())
+	end)
+	trove:Add(connection)
+
+	local function stop()
+		trove:Remove(connection)
+	end
+
+	return get, stop
 end
 
 ---------------------------------------------------------------------
@@ -89,27 +104,22 @@ end
     Observes the spectrum data of the audio. This returns a signal that fires every frame with the current spectrum data. The second return value is a function that can be called to stop observing the spectrum data.
 ]=]
 
-function AudioSpectrumAnalyzer:ObserveSpectrum(): (Types.Signal, () -> ())
-	-- Create a Trove that we will use to clean up our connection when the AudioAnalyzer is destroyed.
-	local observeTrove = self._trove:Extend()
-	local observeSignal = observeTrove:Construct(Signal)
-
-	observeTrove:Connect(RunService.Heartbeat, function()
-		-- Get our Spectrum data
-		local ok, result = pcall(function()
-			return self.Instance:GetSpectrum()
-		end)
-
-		if ok then
-			observeSignal:Fire(result)
-		else
-			observeSignal:Fire(nil)
-		end
-	end)
-
-	return observeSignal, function()
-		observeTrove:Destroy()
+function AudioSpectrumAnalyzer:ObserveSpectrum()
+	if RunService:IsServer() then
+		error("ObserveSpectrum can only be called on the client.")
 	end
+
+	-- Spectrum data is only available if we aren't connected to an AudioDeviceInput, so we need to check if we're connected to one or not.
+	local Wires = self.Instance:GetConnectedWires()
+	for _, wire in Wires do
+		if wire.SourceInstance and wire.SourceInstance:IsA("AudioDeviceInput") then
+			error("ObserveSpectrum cannot be called while connected to an AudioDeviceInput.")
+		end
+	end
+
+	return observe(self._trove, function()
+		return self.Instance:GetSpectrum()
+	end)
 end
 
 --[=[
@@ -128,25 +138,14 @@ end
     Observes the peak level of the audio. This returns a signal that fires every frame with the current peak level of the audio. The second return value is a function that can be called to stop observing the peak level.
 ]=]
 
-function AudioSpectrumAnalyzer:ObservePeak(): (Types.Signal, () -> ())
-	local observeTrove = self._trove:Extend()
-	local observeSignal = observeTrove:Construct(Signal)
-
-	observeTrove:Connect(RunService.Heartbeat, function()
-		local ok, result = pcall(function()
-			return self.Instance.PeakLevel
-		end)
-
-		if ok then
-			observeSignal:Fire(result)
-		else
-			observeSignal:Fire(nil)
-		end
-	end)
-
-	return observeSignal, function()
-		observeTrove:Destroy()
+function AudioSpectrumAnalyzer:ObservePeak()
+	if RunService:IsServer() then
+		error("ObservePeak can only be called on the client.")
 	end
+
+	return observe(self._trove, function()
+		return self.Instance.PeakLevel
+	end)
 end
 
 --[=[
@@ -165,25 +164,14 @@ end
     Observes the RMS level of the audio. This returns a signal that fires every frame with the current RMS level of the audio. The second return value is a function that can be called to stop observing the RMS level.
 ]=]
 
-function AudioSpectrumAnalyzer:ObserveRMS(): (Types.Signal, () -> ())
-	local observeTrove = self._trove:Extend()
-	local observeSignal = observeTrove:Construct(Signal)
-
-	observeTrove:Connect(RunService.Heartbeat, function()
-		local ok, result = pcall(function()
-			return self.Instance.RmsLevel
-		end)
-
-		if ok then
-			observeSignal:Fire(result)
-		else
-			observeSignal:Fire(nil)
-		end
-	end)
-
-	return observeSignal, function()
-		observeTrove:Destroy()
+function AudioSpectrumAnalyzer:ObserveRMS()
+	if RunService:IsServer() then
+		error("ObserveRMS can only be called on the client.")
 	end
+
+	return observe(self._trove, function()
+		return self.Instance.RmsLevel
+	end)
 end
 
 function AudioSpectrumAnalyzer:__tostring()

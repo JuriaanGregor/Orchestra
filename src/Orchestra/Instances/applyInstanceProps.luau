@@ -6,13 +6,11 @@
     Applies properties to an instance
 ]]
 
-local Package = script.Parent.Parent
-
 -- Utility
-local xtypeof = require(Package.Utility.xtypeof)
+local xtypeof = require("../Utility/xtypeof")
 
 -- Logging
-local parseError = require(Package.Logging.parseError)
+local parseError = require("../Logging/parseError")
 
 local function unsafePropertySet(instance: Instance, property: string, value: unknown)
 	(instance :: any)[property] = value

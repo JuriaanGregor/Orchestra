@@ -1,21 +1,18 @@
 --!strict
 
--- Roblox Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 -- Import
-local Package = ReplicatedStorage:WaitForChild("Audio")
-local t = require(Package.Packages.t)
+local Dependencies = require("../Dependencies")
+local t = Dependencies.t
 
 -- Types
-local Types = require(Package.Types)
+local Types = require("../Types")
 
 -- Enums
-local Enums = require(Package.Enums)
+local Enums = require("../Enums")
 
 -- Variables
 local AUDIO_ANALYSERS: { [string]: any } = {
-	[Enums.Analyzer.Spectrum.Name] = require(script.AudioSpectrumAnalyzer),
+	[Enums.Analyzer.Spectrum.Name] = require("@self/AudioSpectrumAnalyzer"),
 }
 
 -- Functions

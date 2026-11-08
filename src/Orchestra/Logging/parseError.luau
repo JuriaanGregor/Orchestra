@@ -2,8 +2,7 @@
 --!nolint LocalUnused
 --!nolint LocalShadow
 
-local Package = script.Parent.Parent
-local Types = require(Package.Types)
+local Types = require("../Types")
 
 local function parseError(err: string): Types.Error
 	return {

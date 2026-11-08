@@ -1,20 +1,24 @@
 --!strict
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+--[[
+	Shared types for Orchestra.
 
--- Imports > Packages
-local Package = ReplicatedStorage:WaitForChild("Audio")
-local Trove = require(Package.Packages.Trove)
-local Signal = require(Package.Packages.Signal)
-local t = require(Package.Packages.t)
+	Two kinds of things live here:
+	- Instance unions (`AudioMembers`, `AudioEffectInstance`, ...) describing the Roblox audio instances we wrap.
+	- Object types (`AU*`) describing the Luau wrapper objects each component returns.
 
--- Imports > Package
-local Enums = require(Package.Enums)
+	It also exports runtime `t` checkers generated from `Enums`, so factories can validate the type names they receive.
+]]
 
--- Generic Types for our Packages
-export type Trove = typeof(Trove.new())
-export type Signal = typeof(Signal.new())
+local Dependencies = require("./Dependencies")
+local t = Dependencies.t
+local Enums = require("./Enums")
 
--- Generic Types
+type Trove = Dependencies.Trove
+type EnumItem = Enums.EnumItem
+
+---------------------------------------------------------------------
+-- Generic
+
 export type Error = {
 	type: "Error",
 	raw: string,
@@ -23,208 +27,238 @@ export type Error = {
 	context: string?,
 }
 
-export type AudioMembers =
-	-- Streams
-	AudioPlayer
-	| AudioDeviceInput
-	| AudioListener
-	-- Output
-	| AudioDeviceOutput
-	| AudioEmitter
-	-- Fader
-	| AudioFader
-	-- Analyzer 
-	| AudioAnalyzer
-	-- Effects
-	| AudioChorus
-	| AudioCompressor
-	| AudioDistortion
-	| AudioEcho
-	| AudioEqualizer
-	| AudioFlanger
-	| AudioGate
-	| AudioPitchShifter
-	| AudioReverb
-	| AudioTremolo
+---------------------------------------------------------------------
+-- Roblox audio instances
 
-export type AudioEffects =
+export type AudioStreamInstance = AudioPlayer | AudioDeviceInput | AudioListener | AudioTextToSpeech
+
+export type AudioOutputInstance = AudioDeviceOutput | AudioEmitter
+
+export type AudioEffectInstance =
 	AudioChorus
 	| AudioCompressor
 	| AudioDistortion
 	| AudioEcho
 	| AudioEqualizer
 	| AudioFlanger
-	| AudioGate
 	| AudioPitchShifter
 	| AudioReverb
 	| AudioTremolo
-export type AudioTransforms = AudioChannelMixer | AudioChannelSplitter
-export type AudioAnalyzers = AudioAnalyzer
 
-local EnumValues = {} :: { [string]: any }
+export type AudioTransformInstance = AudioChannelMixer | AudioChannelSplitter | AudioGate | AudioLimiter
 
-for enumListIndex, enumList in Enums do
-	-- Create the Enum table for each EnumList
-	EnumValues[enumListIndex] = {}
+-- Every audio instance that has pins and can be wired
+export type AudioMembers =
+	AudioStreamInstance
+	| AudioOutputInstance
+	| AudioEffectInstance
+	| AudioTransformInstance
+	| AudioFader
+	| AudioAnalyzer
 
-	for _, enumItem in enumList:GetEnumItems() do
-		table.insert(EnumValues[enumListIndex], enumItem.Name)
-	end
-end
+---------------------------------------------------------------------
+-- Base objects
 
-type AudioBase = typeof(setmetatable({}, {})) & {
+type Object<T> = {
+	Type: string,
 	ClassName: string,
+	Instance: T,
 	_trove: Trove,
-	Destroy: () -> (),
+	Destroy: (self: any) -> (),
 }
 
-export type AUWire = AudioBase & {
+-- An object that owns a Routing, and can therefore be wired
+type Node<T> = Object<T> & {
+	Routing: AURouting,
+}
+
+---------------------------------------------------------------------
+-- Routing
+
+export type AudioRoutingPin = {
+	Instance: AudioMembers,
+	-- One of Enums.Pin (Input / Output / Sidechain)
+	PinType: EnumItem,
+	-- Name of a specific pin on the instance, nil for its default pin
+	Pin: string?,
+}
+
+export type AUWire = {
+	ClassName: string,
 	Instance: Wire,
-	ID: string,
-	Changed: Signal,
+	_trove: Trove,
+	IsConnected: (self: any) -> boolean,
+	Destroy: (self: any) -> (),
 }
 
-export type AURouting = AudioBase & {
-	Instance: Folder,
-	Pins: { string },
-	Routing: { [string]: { AUWire } },
-	IsPin: (pin: string) -> boolean,
-	GetWiresAtPin: (pin: string) -> { AUWire },
-	ClearPin: (pin: string) -> (),
-	GetPinsFromInstance: (Instance: AudioMembers) -> { [string]: { AUWire } },
-	WireTo: (target: AudioMembers) -> (),
-	AddWire: (wire: AUWire, pin: string) -> (),
-	Wire: (from: AudioMembers, to: AudioMembers) -> (),
+export type AURouting = {
+	ClassName: string,
+	AudioRouter: Folder,
+	IsAudioMember: boolean?,
+	AudioMember: AudioMembers?,
+	-- Pin names keyed by Enums.Pin name
+	Pins: { [string]: { string } },
+	_trove: Trove,
+	Wire: (self: any, from: AudioRoutingPin, to: AudioRoutingPin) -> (),
+	WireTo: (self: any, to: AudioMembers, toPin: string?) -> (),
+	WireFrom: (self: any, from: AudioMembers, fromPin: string?) -> (),
+	Destroy: (self: any) -> (),
 }
 
-export type AUInput = AudioBase & {
-	Instance: AudioDeviceInput,
-	IsAudible: (player: Player) -> boolean,
-	Out: AudioMembers,
-	Mute: () -> (),
+---------------------------------------------------------------------
+-- Stream
+
+export type AUPlayback = Node<AudioPlayer> & {
+	Out: AudioPlayer,
+	Ended: RBXScriptSignal,
+	Looped: RBXScriptSignal,
+	-- Returns the TimeLength of the loaded asset
+	Play: (self: any) -> number,
+	Pause: (self: any) -> (),
+	Stop: (self: any) -> (),
 }
 
-export type AUPlayback = AudioBase & {
-	Instance: AudioPlayer,
-	Changed: Signal,
-	Ended: Signal,
-	Loaded: Signal,
-	Looped: Signal,
-	Out: AudioMembers,
+export type AUInput = Node<AudioDeviceInput> & {
+	Out: AudioDeviceInput,
+	IsAudible: (self: any, player: Player) -> boolean,
+	Mute: (self: any) -> (),
 }
 
-export type AUListener = AudioBase & {
-	Instance: AudioListener,
-	Out: AudioMembers,
+export type AUListener = Node<AudioListener> & {
+	Out: AudioListener,
 }
 
-export type AUTextToSpeech = AudioBase & {
-	Instance: AudioTextToSpeech,
-	Looped: Signal,
-	Ended: Signal,
+export type AUTextToSpeech = Node<AudioTextToSpeech> & {
+	In: AudioTextToSpeech,
+	Out: AudioTextToSpeech,
 	Text: string?,
-	Out: AudioMembers,
+	Ended: RBXScriptSignal,
+	Looped: RBXScriptSignal,
+	Play: (self: any) -> (),
+	Pause: (self: any) -> (),
+	-- Both return a Promise that settles once the text has loaded
+	Load: (self: any) -> any,
+	LoadText: (self: any, text: string) -> any,
 }
 
-export type AUStream = AudioBase & {
-	Instance: AudioPlayer | AudioListener | AudioDeviceInput,
-	Stream: AUPlayback | AUListener | AUInput | AUTextToSpeech,
-	Play: () -> (),
-	Pause: () -> (),
-	Stop: () -> (),
-	Routing: AURouting,
-	Out: AudioMembers,
+export type AUStream = AUPlayback | AUInput | AUListener | AUTextToSpeech
+
+---------------------------------------------------------------------
+-- Output
+
+export type AUDeviceOutput = Node<AudioDeviceOutput> & {
+	In: AudioDeviceOutput,
 }
 
-export type AUDeviceOutput = AudioBase & {
-	Instance: AudioDeviceOutput,
-	In: AudioMembers,
+export type AUEmitter = Node<AudioEmitter> & {
+	In: AudioEmitter,
+	SetDistanceAttenuation: (self: any, attenuation: { [number]: number }) -> (),
+	SetAngleAttenuation: (self: any, attenuation: { [number]: number }) -> (),
 }
 
-export type AUEmitter = AudioBase & {
-	Instance: AudioEmitter,
-	In: AudioMembers,
+export type AUOutput = AUDeviceOutput | AUEmitter
+
+---------------------------------------------------------------------
+-- Effects
+
+export type AUEffect = Node<AudioEffectInstance> & {
+	In: AudioEffectInstance,
+	Out: AudioEffectInstance,
 }
 
-export type AUEffect = AudioBase & {
-	EffectType: string,
-	Instance: AudioEffects,
-	In: AudioMembers,
-	Out: AudioMembers,
+export type AUEqualizer = AUEffect & {
+	SetGain: (self: any, band: "Low" | "Mid" | "High", gain: number) -> (),
+	SetRange: (self: any, minFrequency: number, maxFrequency: number) -> (),
 }
 
-export type AUChannelMixer = AudioBase & {
-	Instance: AudioChannelMixer,
-	In: AudioMembers,
-	Out: AudioMembers,
+---------------------------------------------------------------------
+-- Transforms
+
+export type AUTransform = Node<AudioTransformInstance> & {
+	In: AudioTransformInstance,
+	Out: AudioTransformInstance,
 }
 
-export type AUChannelSplitter = AudioBase & {
-	Instance: AudioChannelSplitter,
-	In: AudioMembers,
-	Out: AudioMembers,
+export type AUChannelMixer = Node<AudioChannelMixer> & {
+	In: AudioChannelMixer,
+	Out: AudioChannelMixer,
 }
 
-export type AUOutput = AudioBase & {
-	OutputType: AudioOutputType,
-	Instance: AudioDeviceOutput | AudioEmitter,
-	In: AudioMembers,
-	Output: AUDeviceOutput | AUEmitter,
+export type AUChannelSplitter = Node<AudioChannelSplitter> & {
+	In: AudioChannelSplitter,
+	Out: AudioChannelSplitter,
 }
 
-export type AUFader = AudioBase & {
-	Instance: AudioFader,
-	In: AudioMembers,
-	Out: AudioMembers,
-	Routing: AURouting,
-	Set: (volume: number) -> (),
-	Tween: (goal: number, tweenInfo: TweenInfo?) -> Signal,
-	FadeOut: (duration: number, goal: number?) -> Signal,
-	FadeIn: (duration: number, goal: number?) -> Signal,
-	Mute: (noTween: boolean?) -> (),
+export type AUGate = Node<AudioGate> & {
+	In: AudioGate,
+	Out: AudioGate,
+}
+
+export type AULimiter = Node<AudioLimiter> & {
+	In: AudioLimiter,
+	Out: AudioLimiter,
+}
+
+---------------------------------------------------------------------
+-- Analyzers
+
+export type AUAnalyzer = Object<AudioAnalyzer> & {
+	In: AudioAnalyzer,
+	GetSpectrum: (self: any) -> { number },
+	ObserveSpectrum: (self: any) -> (Dependencies.Getter<{ number }>, () -> ()),
+	GetPeak: (self: any) -> number,
+	ObservePeak: (self: any) -> (Dependencies.Getter<number>, () -> ()),
+	GetRMS: (self: any) -> number,
+	ObserveRMS: (self: any) -> (Dependencies.Getter<number>, () -> ()),
+}
+
+---------------------------------------------------------------------
+-- Base components
+
+export type AUFader = Node<AudioFader> & {
+	In: AudioFader,
+	Out: AudioFader,
 	IsMuted: boolean,
-	Completed: Signal,
+	_tweenTrove: Trove,
+	_previousVolume: number?,
+	Set: (self: any, volume: number) -> (),
+	-- Tween / FadeOut / FadeIn / Mute return a Promise (evaera/promise has no Luau types)
+	Tween: (self: any, goal: number, tweenInfo: TweenInfo?) -> any,
+	FadeOut: (self: any, duration: number, goal: number?) -> any,
+	FadeIn: (self: any, duration: number, goal: number?) -> any,
+	Mute: (self: any, noTween: boolean?) -> any,
 }
 
-export type AUTransform = AudioBase & {
-	Routing: AURouting,
-	Instance: AudioTransforms,
-	In: AudioMembers,
-	Out: AudioMembers,
-}
-
-export type AULayer = AudioBase & {
+export type AULayer = Object<Folder> & {
 	Stream: AUStream,
 	Fader: AUFader,
-	_components: {
-		["AudioStream"]: AUStream,
-		["AudioFader"]: AUFader,
-		[string]: any,
-	},
 	Routing: AURouting,
-	Out: AudioMembers,
+	Out: AudioFader,
+	_components: {
+		AudioStream: AUStream,
+		AudioFader: AUFader,
+	},
+	Play: (self: any, completeHandler: (() -> ())?) -> (),
+	Stop: (self: any) -> (),
 }
 
-export type AUAnalyzer = AudioBase & {
-	Instance: AudioAnalyzer,
-	In: AudioMembers,
-}
+---------------------------------------------------------------------
+-- Runtime checkers, generated from Enums
 
-export type AUParameter = AudioBase & {
-	_trove: Trove,
-	_value: number,
-	_range: NumberRange?,
-	Changed: Signal,
-	Get: () -> number,
-	Set: (value: number) -> (),
-}
+local function enumNames(enumList: Enums.EnumList): { string }
+	local names = {}
+	for _, item in enumList:GetEnumItems() do
+		table.insert(names, item.Name)
+	end
+	return table.freeze(names)
+end
 
 return table.freeze({
-	tAudioOutput = t.valueOf(EnumValues.Output),
-	tAudioPin = t.valueOf(EnumValues.Pin),
-	tAudioStream = t.valueOf(EnumValues.Stream),
-	tAudioTransform = t.valueOf(EnumValues.Transform),
-	tAudioEffect = t.valueOf(EnumValues.Effect),
-	tAudioAnalyzer = t.valueOf(EnumValues.Analyzer),
-	tAudioMembers = t.valueOf(EnumValues.AudioMembers),
+	tAudioOutput = t.valueOf(enumNames(Enums.Output)),
+	tAudioPin = t.valueOf(enumNames(Enums.Pin)),
+	tAudioStream = t.valueOf(enumNames(Enums.Stream)),
+	tAudioTransform = t.valueOf(enumNames(Enums.Transform)),
+	tAudioEffect = t.valueOf(enumNames(Enums.Effect)),
+	tAudioAnalyzer = t.valueOf(enumNames(Enums.Analyzer)),
+	tAudioMembers = t.valueOf(enumNames(Enums.AudioMembers)),
 })

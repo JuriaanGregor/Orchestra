@@ -1,20 +1,17 @@
 --!strict
 
--- Roblox Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 -- Imports > Packages
-local Package = ReplicatedStorage:WaitForChild("Audio")
-local t = require(Package.Packages.t)
-local Trove = require(Package.Packages.Trove)
-local Promise = require(Package.Packages.Promise)
+local Dependencies = require("../../Dependencies")
+local t = Dependencies.t
+local Trove = Dependencies.Trove
+local Promise = Dependencies.Promise
 
 -- Imports > Package
-local applyInstanceProps = require(Package.Instances.applyInstanceProps)
-local Routing = require(Package.Components.Routing)
+local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local Routing = require("../Routing")
 
 -- Types
-local Types = require(Package.Types)
+local Types = require("../../Types")
 
 -- Functions
 local tAudioTextToSpeech = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
@@ -96,22 +93,19 @@ end
 ]=]
 
 function AudioTextToSpeech:Play()
-	-- Ensure the AudioTextToSpeech is loaded
-	if not self.Instance.IsLoaded then
-		-- If not loaded, attempt to load it once..
-		self.Instance:Load()
-
-		self._subTrove = self._trove:Extend()
-		self._subTrove:Connect(self.Instance.Loaded, function()
-			self.Instance:Play()
-			self._subTrove:Destroy()
-		end)
-
-		warn("AudioTextToSpeech: Cannot play because it is not loaded.")
-		return
-	else
+	if self.Instance.IsLoaded then
 		self.Instance:Play()
+		return
 	end
+
+	-- Not loaded yet: load first, then play
+	self:Load()
+		:andThen(function()
+			self.Instance:Play()
+		end)
+		:catch(function(err)
+			warn(string.format("AudioTextToSpeech: Failed to play, could not load: %s", tostring(err)))
+		end)
 end
 
 --[=[
@@ -123,30 +117,37 @@ function AudioTextToSpeech:Pause()
 end
 
 --[=[
-	Loads the AudioTextToSpeech with the given text
+	Loads the AudioTextToSpeech's current Text. Returns a Promise that resolves once it's loaded.
+]=]
+
+function AudioTextToSpeech:Load()
+	-- LoadAsync yields, so we run it inside a Promise. The trove cancels it if we're destroyed mid-load.
+	return self._trove:AddPromise(Promise.new(function(resolve, reject)
+		local success, result = pcall(function()
+			return self.Instance:LoadAsync()
+		end)
+
+		if not success then
+			reject(result)
+		elseif result == Enum.AssetFetchStatus.Success then
+			resolve()
+		elseif result == Enum.AssetFetchStatus.TimedOut then
+			reject("Text to speech loading timed out.")
+		else
+			reject(string.format("Failed to load text to speech (%s).", tostring(result)))
+		end
+	end))
+end
+
+--[=[
+	Sets the text to speak and loads it. Returns a Promise that resolves once the text is loaded.
 ]=]
 
 function AudioTextToSpeech:LoadText(text: string)
 	self.Text = text
+	self.Instance.Text = text
 
-	-- Load the text into the AudioTextToSpeech instance, this is a yielding call!
-	return Promise.new(function(resolve, reject)
-		local success, result = pcall(function()
-			self.Instance:LoadText(text)
-		end)
-
-		if success then
-			if result == Enum.AssetFetchStatus.Success then
-				resolve()
-			elseif result == Enum.AssetFetchStatus.Failure then
-				reject("Failed to load text to speech.")
-			elseif result == Enum.AssetFetchStatus.TimedOut then
-				reject("Text to speech loading timed out.")
-			end
-		else
-			reject(result)
-		end
-	end)
+	return self:Load()
 end
 
 --[=[

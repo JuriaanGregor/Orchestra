@@ -1,21 +1,19 @@
 --!strict
 
 -- Roblox Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 -- Import > Packages
-local Package = ReplicatedStorage:WaitForChild("Audio")
-local t = require(Package.Packages.t)
-local Trove = require(Package.Packages.Trove)
-local Signal = require(Package.Packages.Signal)
+local Dependencies = require("../../Dependencies")
+local t = Dependencies.t
+local Trove = Dependencies.Trove
 
 -- Types
-local Types = require(Package.Types)
+local Types = require("../../Types")
 
 -- Imports > Package
-local applyInstanceProps = require(Package.Instances.applyInstanceProps)
-local Routing = require(Package.Components.Routing)
+local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local Routing = require("../Routing")
 
 -- Functions
 local tResolveAssetId = t.union(t.string, t.number, t.instanceIsA("Sound"))
@@ -66,12 +64,15 @@ local function ResolveAssetId(asset: string | number | Sound): string?
 	return nil
 end
 
-local tCreatePlayer = t.tuple(t.Instance, t.map(t.string, t.any))
+local tCreatePlayer = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 local function CreatePlayer(parent: Instance, props: { [string]: any }?): AudioPlayer
 	assert(tCreatePlayer(parent, props))
 
 	local audioPlayer = Instance.new("AudioPlayer") :: AudioPlayer
 	audioPlayer.Parent = parent
+
+	-- Work on a copy, we strip and rewrite the asset fields below
+	props = if props then table.clone(props) else nil
 
 	-- Let's find our assetId if we have one
 	local assetId: any? = nil
@@ -147,13 +148,11 @@ function AudioPlayer.new(parent: Instance, props: { [string]: any }?): Types.AUP
 	self.Routing = Routing.new(self.Instance)
 
 	-- Create our Signals
-	self.Changed = self._trove:Construct(Signal)
-	self.Loaded = self._trove:Construct(Signal)
 	self.Ended = self.Instance.Ended
 	self.Looped = self.Instance.Looped
 
 	self._trove:Connect(self.Instance:GetPropertyChangedSignal("TimeLength"), function()
-		self.Loaded:Fire(self.Instance.TimeLength)
+		--self.Loaded:Fire(self.Instance.TimeLength)
 	end)
 
 	-- Expose our members

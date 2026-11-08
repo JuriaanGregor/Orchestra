@@ -1,19 +1,16 @@
 --!strict
 
--- Roblox Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 -- Import > Packages
-local Package = ReplicatedStorage:WaitForChild("Audio")
-local t = require(Package.Packages.t)
-local Trove = require(Package.Packages.Trove)
+local Dependencies = require("../../Dependencies")
+local t = Dependencies.t
+local Trove = Dependencies.Trove
 
 -- Import > Package
-local applyInstanceProps = require(Package.Instances.applyInstanceProps)
-local Routing = require(Package.Components.Routing)
+local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local Routing = require("../Routing")
 
 -- Types
-local Types = require(Package.Types)
+local Types = require("../../Types")
 
 -- Functions
 local function CreateListener(parent: Instance, props: { [string]: any }?): AudioListener

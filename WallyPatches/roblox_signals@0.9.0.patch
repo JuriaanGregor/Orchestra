@@ -1,0 +1,22 @@
+diff --git a/signals/modules/signals-react/src/useSignalBinding.lua b/signals/modules/signals-react/src/useSignalBinding.lua
+index 27d9c34..e6248b2 100644
+--- a/signals/modules/signals-react/src/useSignalBinding.lua
++++ b/signals/modules/signals-react/src/useSignalBinding.lua
+@@ -1,5 +1,5 @@
+ local Packages = script.Parent.Parent
+-local React = require(Packages.React)
++local React = require(Packages.Parent.React)
+ type Binding<T> = React.Binding<T>
+ 
+ local Signals = require(Packages.Signals)
+diff --git a/signals/modules/signals-react/src/useSignalState.lua b/signals/modules/signals-react/src/useSignalState.lua
+index ad75f32..4c6018a 100644
+--- a/signals/modules/signals-react/src/useSignalState.lua
++++ b/signals/modules/signals-react/src/useSignalState.lua
+@@ -1,5 +1,5 @@
+ local Packages = script.Parent.Parent
+-local React = require(Packages.React)
++local React = require(Packages.Parent.React)
+ 
+ local Signals = require(Packages.Signals)
+ local createEffect = Signals.createEffect

@@ -1,19 +1,16 @@
 --!strict
 
--- Roblox Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 -- Imports > Packages
-local Package = ReplicatedStorage:WaitForChild("Audio")
-local t = require(Package.Packages.t)
-local Trove = require(Package.Packages.Trove)
+local Dependencies = require("../../Dependencies")
+local t = Dependencies.t
+local Trove = Dependencies.Trove
 
 -- Enums
-local Enums = require(Package.Enums)
+local Enums = require("../../Enums")
 
 -- Imports > Package
-local applyInstanceProps = require(Package.Instances.applyInstanceProps)
-local Routing = require(Package.Components.Routing)
+local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local Routing = require("../Routing")
 
 -- Functions
 local tAudioCompressor = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))

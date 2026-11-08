@@ -1,25 +1,39 @@
 --!strict
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 -- Import > Packages
-local Package = ReplicatedStorage:WaitForChild("Orchestra")
-local t = require(Package.Packages.t)
-local Trove = require(Package.Packages.Trove)
+local Dependencies = require("@self/Dependencies")
+local t = Dependencies.t
+local Trove = Dependencies.Trove
 
 -- Import > Enums
-local Enums = require(Package.Enums)
+local Enums = require("@self/Enums")
 
--- Constants
-local DEFAULT_MIX_BUSES = {
-	"Music",
-	"SFX",
-	"Voice",
-	"Ambient",
-}
+-- Import > Configs
+local Config = require("@self/Config")
 
 ---------------------------------------------------------------------
+
+local function createMaster(trove: Dependencies.Trove, fader: any)
+	if not SoundService:FindFirstChild("Mixes") then
+		error("SoundService is missing Mixes folder")
+	end
+
+	if SoundService.Mixes:FindFirstChild("Master") then
+		error("SoundService already has Master mix bus")
+	end
+
+	local Master = fader.new(SoundService.Mixes, {
+		Name = "Master",
+	})
+
+	trove:Add(Master)
+
+	-- Return our master fader
+	return Master
+end
 
 --[=[
 	@class Orchestra
@@ -38,7 +52,13 @@ function Orchestra.new()
 
 	self.Started = false
 
-	local comps = require(script.Components)
+	-- Mix buses by name, filled by :AddMix
+	self.Mixes = {}
+
+	-- Expose our Enums, these are needed to create components through the factories
+	self.Enums = Enums
+
+	local comps = require("@self/Components")
 	for compIndex, compValue in comps do
 		self[compIndex] = compValue
 	end
@@ -51,15 +71,17 @@ function Orchestra:__tostring()
 end
 
 --[=[
-	Starts the Orchestra engine. This will set up the main output and master mix bus, as well as create a default listener and emitter.
+	Starts the Orchestra engine. This sets up the main output, the Master fader, and a mix bus + listener
+	for every bus in `Config.MIX_BUSES`. Must be called on the client.
 ]=]
-
 function Orchestra:Start()
-	if not self.Started then
-		self.Started = true
-	else
+	if self.Started then
 		warn("Orchestra:Start - Audio Engine already started")
 		return
+	end
+
+	if not RunService:IsClient() then
+		error("Orchestra:Start - The audio engine can only be started on the client")
 	end
 
 	if SoundService:FindFirstChild("Mixes") then
@@ -67,114 +89,36 @@ function Orchestra:Start()
 		return
 	end
 
-	self.MainOut = self._trove:Construct(self.Output, Enums.Output.Device, SoundService, {
+	self.Started = true
+
+	-- Typed local: `self` is untyped here, so Luau would otherwise infer Trove's methods from their first use
+	local trove: Dependencies.Trove = self._trove
+
+	-- Note: SoundService.DefaultListenerLocation should be set to None in the place (game scripts can't set it).
+	-- Otherwise Roblox's default listener wires itself into MainOut, letting ungrouped emitters bypass the mix buses.
+
+	self.MainOut = trove:Construct(self.Output, Enums.Output.Device, SoundService, {
 		Name = "MainOut",
 		Player = Players.LocalPlayer,
 	})
 
 	-- Create Mixes folder
-	local Mixes = self._trove:Construct(Instance, "Folder")
+	local Mixes = Instance.new("Folder")
 	Mixes.Name = "Mixes"
 	Mixes.Parent = SoundService
+	trove:Add(Mixes)
 
 	-- Create our Master fader..
-	self.Master = self._trove:Construct(self.Fader, SoundService.Mixes, {
-		Name = "Master",
-	})
+	self.Master = createMaster(trove, self.Fader)
 
 	-- Wire out Master to MainOut
 	self.Master.Routing:WireTo(self.MainOut.In)
 
 	-- Add default mix buses
-	for _, busName in DEFAULT_MIX_BUSES do
-		self:AddMix(busName)
-		self:AddListener(busName)
+	for _, bus in Config.MIX_BUSES:GetEnumItems() do
+		self:AddMix(bus.Name)
+		self:AddListener(bus.Name)
 	end
-
-	-- Create a new Default part with a SoundId in it..
-	local audioPart = self._trove:Construct(Instance, "Part")
-	audioPart.Name = "AudioEngine"
-	audioPart.Position = Vector3.new(0, 4, 0)
-	audioPart.Size = Vector3.new(4, 4, 4)
-	audioPart.Transparency = 1
-	audioPart.Anchored = true
-	audioPart.CanCollide = false
-	audioPart.Parent = workspace
-
-	local audioPartL = self._trove:Construct(Instance, "Part")
-	audioPartL.Name = "AudioEngineL"
-	audioPartL.Position = Vector3.new(-10, 4, 0)
-	audioPartL.Size = Vector3.new(4, 4, 4)
-	audioPartL.Transparency = 0
-	audioPartL.Anchored = true
-	audioPartL.CanCollide = false
-	audioPartL.Parent = workspace
-
-	local audioPartR = self._trove:Construct(Instance, "Part")
-	audioPartR.Name = "AudioEngineR"
-	audioPartR.Position = Vector3.new(10, 4, 0)
-	audioPartR.Size = Vector3.new(4, 4, 4)
-	audioPartR.Transparency = 0
-	audioPartR.Anchored = true
-	audioPartR.CanCollide = false
-	audioPartR.Parent = workspace
-
-	-- Create a new AudioLayer
-	local audioLayer = self._trove:Construct(self.Layer, Enums.Stream.Player, audioPart, {
-		Name = "DefaultAudioLayer",
-		Content = "rbxassetid://15287092994",
-	})
-
-	-- Add a AudioEffect to the Emitter
-	local audioEffect = self._trove:Construct(self.Effects, Enums.Effect.Equalizer, audioLayer.Instance, {
-		Name = "DefaultEqualizer",
-	})
-
-	-- Create our AudioAnalyzer
-	local audioAnalyzer = self._trove:Construct(self.Analyzers, Enums.Analyzer.Spectrum, audioLayer.Instance, {
-		Name = "SpectrumAnalyzer",
-	})
-
-	audioEffect.Routing:WireTo(audioAnalyzer.In)
-
-	-- Create a channel transform
-	local audioTransform =
-		self._trove:Construct(self.Transforms, Enums.Transform.ChannelSplitter, audioLayer.Instance, {
-			Name = "ChannelSplitter",
-			Layout = Enum.AudioChannelLayout.Stereo,
-		})
-
-	audioEffect.Routing:WireTo(audioTransform.In)
-
-	-- Wire the AudioLayer to the Emitter through the AudioEffect
-	audioLayer.Routing:WireTo(audioEffect.In)
-
-	-- Create a new Emitter
-	local emitterL = self._trove:Construct(self.Output, Enums.Output.Emitter, audioPartL, {
-		AudioInteractionGroup = "Music",
-		Name = "EmitterL",
-	})
-
-	local emitterR = self._trove:Construct(self.Output, Enums.Output.Emitter, audioPartR, {
-		AudioInteractionGroup = "Music",
-		Name = "EmitterR",
-	})
-
-	audioTransform.Routing:Wire(
-		{ Instance = audioTransform.Instance, PinType = Enums.Pin.Output, Pin = "Left" },
-		{ Instance = emitterL.Instance, PinType = Enums.Pin.Input }
-	)
-
-	audioTransform.Routing:Wire(
-		{ Instance = audioTransform.Instance, PinType = Enums.Pin.Output, Pin = "Right" },
-		{ Instance = emitterR.Instance, PinType = Enums.Pin.Input }
-	)
-
-	-- Play the Stream connected to the AudioLayer
-	audioLayer.Stream:Play()
-
-	-- Tween our Sound over a duration of 10 seconds..
-	audioLayer.Fader:Tween(3, TweenInfo.new(1))
 end
 
 local tAddMix = t.string
@@ -186,7 +130,7 @@ function Orchestra:AddMix(busName: string)
 	assert(tAddMix(busName))
 
 	-- Check if mix bus already exists
-	if SoundService.Mixes:FindFirstChild(busName) then
+	if self.Mixes[busName] then
 		warn("Orchestra:AddMix - Mix bus already exists: " .. busName)
 		return
 	end
@@ -196,7 +140,6 @@ function Orchestra:AddMix(busName: string)
 		Name = string.format("MixBus:%s", busName),
 	})
 
-	self.Mixes = self.Mixes or {}
 	self.Mixes[busName] = mixBus
 
 	-- Wire our mix bus to Master
@@ -210,7 +153,11 @@ local tAddListener = t.string
 function Orchestra:AddListener(listenerName: string)
 	assert(tAddListener(listenerName))
 
-	if not self.Mixes or not self.Mixes[listenerName] then
+	if not RunService:IsClient() then
+		error("Orchestra:AddListener - Listeners can only be added on the client")
+	end
+
+	if not self.Mixes[listenerName] then
 		error("Orchestra:AddListener - Mix bus does not exist for listener: " .. listenerName)
 	end
 
@@ -226,9 +173,5 @@ function Orchestra:AddListener(listenerName: string)
 	return listener
 end
 
-local OrchestraEngine = Orchestra.new()
-
--- Start the engine
-OrchestraEngine:Start()
-
-return OrchestraEngine
+-- Requiring Orchestra has no side effects: call `:Start()` on the client to set up the engine
+return Orchestra.new()

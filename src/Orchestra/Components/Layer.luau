@@ -1,22 +1,16 @@
 --!strict
 
--- Roblox Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 -- Import > Packages
-local Package = ReplicatedStorage:WaitForChild("Audio")
-local t = require(Package.Packages.t)
-local Trove = require(Package.Packages.Trove)
+local Dependencies = require("../Dependencies")
+local t = Dependencies.t
+local Trove = Dependencies.Trove
 
 -- Import > Package
-local Stream = require(Package.Components.Stream)
-local Fader = require(Package.Components.Fader)
-
--- Types
-local Types = require(Package.Types)
+local Stream = require("./Stream")
+local Fader = require("./Fader")
 
 -- Enums
-local Enums = require(Package.Enums)
+local Enums = require("../Enums")
 
 ---------------------------------------------------------------------
 local AudioLayer = {}
@@ -30,13 +24,13 @@ AudioLayer.__index = AudioLayer
 	A layer is a combination of an AudioStream and an AudioFader connected together.
 ]=]
 
-local tAudioLayer = t.tuple(Types.tAudioStream, t.Instance, t.optional(t.map(t.string, t.any)))
+local tAudioLayer = t.tuple(t.any, t.Instance, t.optional(t.map(t.string, t.any)))
 
 --[=[
 	@within Layer
 	Creates a new AudioLayer object
 ]=]
-function AudioLayer.new(inputType: Enums.EnumItem, parent: Instance, props: { [string]: any }?): Types.AULayer
+function AudioLayer.new(inputType: Enums.EnumItem, parent: Instance, props: { [string]: any }?)
 	assert(tAudioLayer(inputType.Name, parent, props))
 
 	-- Create a new AudioLayer
@@ -54,14 +48,15 @@ function AudioLayer.new(inputType: Enums.EnumItem, parent: Instance, props: { [s
 
 	-- Create our Components
 	self._components = {}
-	self._components.AudioStream = Stream.new(inputType, layerFolder, props)
+	self._components.AudioStream = Stream.new(inputType, layerFolder, if props then table.clone(props) else nil)
 
 	-- Make sure that our Fader is named props.Name with an AudioFader suffix if props.Name exists
-	if props and typeof(props.Name) == "string" then
-		props.Name = props.Name .. ":Fader"
+	local faderProps = if props then table.clone(props) else nil
+	if faderProps and typeof(faderProps.Name) == "string" then
+		faderProps.Name = faderProps.Name .. ":Fader"
 	end
 
-	self._components.AudioFader = Fader.new(self._components.AudioStream.Instance, props) :: Types.AUFader
+	self._components.AudioFader = Fader.new(self._components.AudioStream.Instance, faderProps)
 
 	-- Expose our components
 	self.Stream = self._components.AudioStream
@@ -80,7 +75,7 @@ function AudioLayer.new(inputType: Enums.EnumItem, parent: Instance, props: { [s
 	-- Wire our AudioStream to our AudioFader
 	self.Stream.Routing:WireTo(self.Fader.In)
 
-	return setmetatable(self :: any, AudioLayer) :: Types.AULayer
+	return setmetatable(self :: any, AudioLayer)
 end
 
 function AudioLayer.__tostring()

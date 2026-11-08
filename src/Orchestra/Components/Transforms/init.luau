@@ -1,24 +1,21 @@
 --!strict
 
--- Roblox Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 -- Import > Packages
-local Package = ReplicatedStorage:WaitForChild("Audio")
-local t = require(Package.Packages.t)
+local Dependencies = require("../Dependencies")
+local t = Dependencies.t
 
 -- Types
-local Types = require(Package.Types)
+local Types = require("../Types")
 
 -- Enums
-local Enums = require(Package.Enums)
+local Enums = require("../Enums")
 
 -- Variables
 local AUDIO_TRANSFORMS: { [string]: any } = {
-	[Enums.Transform.ChannelMixer.Name] = require(script.AudioChannelMixer),
-	[Enums.Transform.ChannelSplitter.Name] = require(script.AudioChannelSplitter),
-	[Enums.Transform.Limiter.Name] = require(script.AudioLimiter),
-	[Enums.Transform.Gate.Name] = require(script.AudioGate),
+	[Enums.Transform.ChannelMixer.Name] = require("@self/AudioChannelMixer"),
+	[Enums.Transform.ChannelSplitter.Name] = require("@self/AudioChannelSplitter"),
+	[Enums.Transform.Limiter.Name] = require("@self/AudioLimiter"),
+	[Enums.Transform.Gate.Name] = require("@self/AudioGate"),
 }
 
 -- Functions

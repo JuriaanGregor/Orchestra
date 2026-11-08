@@ -1,20 +1,16 @@
 --!strict
 
 -- Roblox Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 -- Import > Packages
-local Package = ReplicatedStorage:WaitForChild("Audio")
-local t = require(Package.Packages.t)
-local Trove = require(Package.Packages.Trove)
-local Signal = require(Package.Packages.Signal)
-
--- Types
-local Types = require(Package.Types)
+local Dependencies = require("../Dependencies")
+local t = Dependencies.t
+local Trove = Dependencies.Trove
+local Promise = Dependencies.Promise
 
 -- Import > Package
-local Routing = require(Package.Components.Routing)
+local Routing = require("./Routing")
 
 -- t
 local tVolume = t.numberConstrained(0, 3)
@@ -59,7 +55,7 @@ local tAudioFader = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 	@within Fader
 	Creates a new Fader
 ]=]
-function AudioFader.new(parent: Instance, props: { [string]: any }?): Types.AUFader
+function AudioFader.new(parent: Instance, props: { [string]: any }?)
 	assert(tAudioFader(parent, props))
 
 	-- Create a new Audio Fader
@@ -82,12 +78,9 @@ function AudioFader.new(parent: Instance, props: { [string]: any }?): Types.AUFa
 	self.In = self.Instance
 	self.Out = self.Instance
 
-	-- Create our Completed Signal
-	self.Completed = self._tweenTrove:Construct(Signal)
-
 	self._trove:AttachToInstance(self.Instance)
 
-	return setmetatable(self :: any, AudioFader) :: Types.AUFader
+	return setmetatable(self :: any, AudioFader)
 end
 
 function AudioFader:__tostring()
@@ -111,7 +104,7 @@ function AudioFader:Set(volume: number)
 		self._previousVolume = volume
 		warn(
 			string.format(
-				"AudioFader %s is muted, setting volume to %d will not have any effect",
+				"AudioFader %s is muted, setting volume to %.2f will not have any effect",
 				self.Instance.Name,
 				volume
 			)
@@ -127,58 +120,63 @@ function AudioFader:Set(volume: number)
 	end
 end
 
-local tTween = t.tuple(tVolume, t.TweenInfo)
+local tTween = t.tuple(tVolume, t.optional(t.TweenInfo))
 --[=[
 	@within Fader
 	Tweens a Fader to goal
 	@param goal number[0,3] -- The goal for the Volume of the fader
-	@param tweenInfo TweenInfo? -- TweenInfo, if not provided a default TweenInfo will be used
+	@param tweenInfo TweenInfo? -- TweenInfo, if not provided a 1 second linear tween is used
 
-	@return Signal
+	@return Promise -- Resolves when the tween completes. Cancelled when another Tween / Set interrupts it, or the Fader is destroyed.
 ]=]
-function AudioFader:Tween(goal: number, tweenInfo: TweenInfo?): Types.Signal
+function AudioFader:Tween(goal: number, tweenInfo: TweenInfo?)
 	assert(tTween(goal, tweenInfo))
 
-	-- Clean our Tween Trove
+	-- Cancel any running tween (and its Promise), the volume stays where it was interrupted
 	self._tweenTrove:Clean()
 
 	if self.IsMuted then
-		-- We set our volume to the goal, but we are muted
+		-- We store the goal for when we unmute, but we are muted
 		self._previousVolume = goal
 
 		-- Let the user know that we are muted
 		warn(
 			string.format(
-				"AudioFader %s is muted, tweening to volume %d will not have any effect",
+				"AudioFader %s is muted, tweening to volume %.2f will not have any effect",
 				self.Instance.Name,
 				goal
 			)
 		)
 
-		-- We need to defer the signal firing because we are muted
-		task.defer(function()
-			self.Completed:Fire()
-		end)
+		return Promise.resolve()
 	end
 
-	if not self.IsMuted then
-		-- Create a new Tween
-		local tween = self._tweenTrove:Add(
-			TweenService:Create(self.Instance, tweenInfo or TweenInfo.new(1, Enum.EasingStyle.Linear), {
-				Volume = goal,
-			})
-		)
+	local promise = Promise.new(function(resolve, _reject, onCancel)
+		local tween = TweenService:Create(self.Instance, tweenInfo or TweenInfo.new(1, Enum.EasingStyle.Linear), {
+			Volume = goal,
+		})
 
-		-- Play our Tween
+		local connection
+		connection = tween.Completed:Connect(function(playbackState: Enum.PlaybackState)
+			connection:Disconnect()
+			tween:Destroy()
+
+			if playbackState == Enum.PlaybackState.Completed then
+				resolve()
+			end
+		end)
+
+		onCancel(function()
+			connection:Disconnect()
+			tween:Cancel()
+			tween:Destroy()
+		end)
+
 		tween:Play()
+	end)
 
-		-- Connect our Completed event to our Signal
-		self._tweenTrove:Connect(tween.Completed, function()
-			self.Completed:Fire()
-		end)
-	end
-
-	return self.Completed
+	-- The tween trove cancels this Promise when it's cleaned (new Tween / Set) or the Fader is destroyed
+	return self._tweenTrove:AddPromise(promise)
 end
 
 local tFadeOut = t.tuple(t.numberPositive, t.optional(tVolume))
@@ -188,7 +186,7 @@ local tFadeOut = t.tuple(t.numberPositive, t.optional(tVolume))
 	@param duration number -- The amount of seconds that it should take to fade-out the fader
 	@param goal number[0,3] -- The goal that we are targetting
 
-	@return Signal
+	@return Promise -- See Tween
 ]=]
 
 function AudioFader:FadeOut(duration: number, goal: number?)
@@ -209,7 +207,7 @@ local tFadeIn = t.tuple(t.numberPositive, t.optional(tVolume))
 	@param duration number -- The amount of seconds that it should take to fade-in the fader
 	@param goal number[0,3] -- The goal that we are targetting
 
-	@return Signal
+	@return Promise -- See Tween
 ]=]
 function AudioFader:FadeIn(duration: number, goal: number?)
 	assert(tFadeIn(duration, goal))
@@ -227,18 +225,22 @@ local tMute = t.tuple(t.optional(t.boolean))
 	@within Fader
 	Mutes a Fader
 	@param noTween boolean? -- When provided and set to true, this will disable any tweening and do a hard-cut instead.
+
+	@return Promise -- Resolves once the (un)mute fade completes, immediately with noTween
 ]=]
 
 function AudioFader:Mute(noTween: boolean?)
 	assert(tMute(noTween))
 
+	local promise
 	if self.IsMuted == false then
 		self._previousVolume = self.Instance.Volume
 
 		if noTween then
 			self:Set(0)
+			promise = Promise.resolve()
 		else
-			self:FadeOut(0.5, 0)
+			promise = self:FadeOut(0.5, 0)
 		end
 
 		self.IsMuted = true
@@ -247,10 +249,13 @@ function AudioFader:Mute(noTween: boolean?)
 
 		if noTween then
 			self:Set(self._previousVolume)
+			promise = Promise.resolve()
 		else
-			self:FadeIn(0.5, self._previousVolume)
+			promise = self:FadeIn(0.5, self._previousVolume)
 		end
 	end
+
+	return promise
 end
 
 --[=[

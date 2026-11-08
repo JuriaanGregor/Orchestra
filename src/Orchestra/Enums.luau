@@ -1,9 +1,10 @@
 --!strict
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 -- Import > Packages
-local Package = ReplicatedStorage:WaitForChild("Orchestra")
-local Enums = require(Package.Packages.EnumList)
+local Dependencies = require("./Dependencies")
+local Enums = Dependencies.EnumList
+
+export type EnumList = Dependencies.EnumList
+export type EnumItem = Dependencies.EnumItem
 
 local AudioEnums = {
 	Output = Enums.new("Output", {
@@ -34,7 +35,6 @@ local AudioEnums = {
 		"Echo",
 		"Equalizer",
 		"Flanger",
-		"Gate",
 		"PitchShifter",
 		"Reverb",
 		"Tremolo",
@@ -46,6 +46,7 @@ local AudioEnums = {
 		"AudioPlayer",
 		"AudioDeviceInput",
 		"AudioListener",
+		"AudioTextToSpeech",
 		"AudioDeviceOutput",
 		"AudioEmitter",
 		"AudioFader",
@@ -64,6 +65,6 @@ local AudioEnums = {
 		"AudioChannelMixer",
 		"AudioLimiter",
 	}),
-} :: { [string]: Enums.EnumList }
+} :: { [string]: EnumList }
 
 return table.freeze(AudioEnums)

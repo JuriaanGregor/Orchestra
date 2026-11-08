@@ -1,21 +1,16 @@
 --!strict
 
 -- Roblox Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 
 -- Import > Packages
-local Package = ReplicatedStorage:WaitForChild("Audio")
 local applyInstanceProps = require("../Instances/applyInstanceProps")
-local t = require(Package.Packages.t)
-local Trove = require(Package.Packages.Trove)
-local Signal = require(Package.Packages.Signal)
+local Dependencies = require("../Dependencies")
+local t = Dependencies.t
+local Trove = Dependencies.Trove
 
 -- Types
-local Types = require(Package.Types)
-
--- Enums
-local Enums = require(Package.Enums)
+local Types = require("../Types")
 
 -- Variables
 local WIRES = {}
@@ -23,22 +18,15 @@ local WIRES = {}
 -- Functions
 local tCreateWire = t.tuple(t.Instance, t.optional(t.Instance), t.optional(t.Instance))
 
-local audioMembers = {}
-for _, item in ipairs(Enums.AudioMembers:GetEnumItems()) do
-	table.insert(audioMembers, item.Name)
-end
-
-local tAudioMember = t.valueOf(audioMembers)
-
 local function CreateWire(parent: Instance, props: { [string]: any }): Wire
-	assert(tCreateWire(parent, props and props.Input, props and props.Output))
+	assert(tCreateWire(parent, props.SourceInstance, props.TargetInstance))
 
-	local Wire = Instance.new("Wire")
-	Wire.Parent = parent
+	local wire = Instance.new("Wire")
+	wire.Parent = parent
 
-	applyInstanceProps(Wire, props and props or {})
+	applyInstanceProps(wire, props)
 
-	return Wire
+	return wire
 end
 
 ---------------------------------------------------------------------
@@ -67,43 +55,33 @@ function AudioWire.new(parent: Instance, props: { [string]: any }?): Types.AUWir
 
 	if props then
 		if props.SourceInstance then
-			assert(tAudioMember(props.SourceInstance.ClassName))
+			assert(Types.tAudioMembers(props.SourceInstance.ClassName))
 		end
 
 		if props.TargetInstance then
-			assert(tAudioMember(props.TargetInstance.ClassName))
+			assert(Types.tAudioMembers(props.TargetInstance.ClassName))
 		end
 	end
 
-	-- Creature our Wire instance ID..
+	-- Create our Wire instance ID, and add it to a copy of the props (so the caller's table is untouched)
 	local ID = HttpService:GenerateGUID(false)
 
-	-- Apply it to our props so it can be used in our Create Wire function
-	if props and props.Attributes and typeof(props.Attributes) == "table" then
-		props.Attributes.ID = ID
-	elseif props then
-		if props.Attributes and typeof(props.Attributes) == "table" then
-			props.Attributes.ID = ID
-		else
-			props.Attributes = { ID = ID }
-		end
-	end
+	local wireProps: { [string]: any } = if props then table.clone(props) else {}
+	wireProps.Attributes = if typeof(wireProps.Attributes) == "table" then table.clone(wireProps.Attributes) else {}
+	wireProps.Attributes.ID = ID
 
 	-- Create our Wire Instance
-	self.Instance = CreateWire(parent, typeof(props) == "table" and props or {})
+	self.Instance = CreateWire(parent, wireProps)
 
 	-- Create our Trove
 	self._trove = Trove.new()
 
-	-- Signals
-	self.Changed = self._trove:Construct(Signal)
-
 	self._trove:Add(self.Instance:GetPropertyChangedSignal("SourceInstance"):Connect(function()
-		self.Changed:Fire("SourceInstance", self.Instance.SourceInstance)
+		--self.Changed:Fire("SourceInstance", self.Instance.SourceInstance)
 	end))
 
 	self._trove:Add(self.Instance:GetPropertyChangedSignal("TargetInstance"):Connect(function()
-		self.Changed:Fire("TargetInstance", self.Instance.TargetInstance)
+		--self.Changed:Fire("TargetInstance", self.Instance.TargetInstance)
 	end))
 
 	self._trove:Add(function()

@@ -1,22 +1,19 @@
 --!strict
 
--- Roblox Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 -- Imports
-local Package = ReplicatedStorage:WaitForChild("Audio")
-local t = require(Package.Packages.t)
+local Dependencies = require("../Dependencies")
+local t = Dependencies.t
 
 -- Types
-local Types = require(Package.Types)
+local Types = require("../Types")
 
 -- Enums
-local Enums = require(Package.Enums)
+local Enums = require("../Enums")
 
 -- Variables
 local AUDIO_OUTPUTS = {
-	[Enums.Output.Device.Name] = require(script.AudioDeviceOutput),
-	[Enums.Output.Emitter.Name] = require(script.AudioEmitter),
+	[Enums.Output.Device.Name] = require("@self/AudioDeviceOutput"),
+	[Enums.Output.Emitter.Name] = require("@self/AudioEmitter"),
 } :: { [string]: any }
 
 -- Functions

@@ -1,29 +1,26 @@
 --!strict
 
--- Roblox Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 -- Import
-local Package = ReplicatedStorage:WaitForChild("Audio")
-local t = require(Package.Packages.t)
+local Dependencies = require("../Dependencies")
+local t = Dependencies.t
 
 -- Types
-local Types = require(Package.Types)
+local Types = require("../Types")
 
 -- Enums
-local Enums = require(Package.Enums)
+local Enums = require("../Enums")
 
 -- Variables
 local AUDIO_EFFECTS: { [string]: any } = {
-	[Enums.Effect.Equalizer.Name] = require(script.AudioEqualizer),
-	[Enums.Effect.Reverb.Name] = require(script.AudioReverb),
-	[Enums.Effect.Compressor.Name] = require(script.AudioCompressor),
-	[Enums.Effect.Chorus.Name] = require(script.AudioChorus),
-	[Enums.Effect.Distortion.Name] = require(script.AudioDistortion),
-	[Enums.Effect.Echo.Name] = require(script.AudioEcho),
-	[Enums.Effect.Flanger.Name] = require(script.AudioFlanger),
-	[Enums.Effect.PitchShifter.Name] = require(script.AudioPitchShifter),
-	[Enums.Effect.Tremolo.Name] = require(script.AudioTremolo),
+	[Enums.Effect.Equalizer.Name] = require("@self/AudioEqualizer"),
+	[Enums.Effect.Reverb.Name] = require("@self/AudioReverb"),
+	[Enums.Effect.Compressor.Name] = require("@self/AudioCompressor"),
+	[Enums.Effect.Chorus.Name] = require("@self/AudioChorus"),
+	[Enums.Effect.Distortion.Name] = require("@self/AudioDistortion"),
+	[Enums.Effect.Echo.Name] = require("@self/AudioEcho"),
+	[Enums.Effect.Flanger.Name] = require("@self/AudioFlanger"),
+	[Enums.Effect.PitchShifter.Name] = require("@self/AudioPitchShifter"),
+	[Enums.Effect.Tremolo.Name] = require("@self/AudioTremolo"),
 }
 
 -- Functions
