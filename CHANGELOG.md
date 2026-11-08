@@ -18,7 +18,7 @@ Presets: one mix definition per platform, with insert effects on every bus and o
 - **Presets** (`Orchestra.Presets`):
   - `Register`, and `RegisterFolder` to register one ModuleScript per preset
   - `Extends`, per-bus and Main `Volume` and `Inserts` (merged by `Id`; `Props`, `Bypass`, `Remove`, `After`), `Transition`
-  - Platform detection (Mobile, Desktop, Console) with `Start({ Platform, Presets })` and `SetPlatform`
+  - Platform detection with `Start({ Platform, Presets })` and `SetPlatform`: Console on a TV screen (`GuiService:IsTenFootInterface()`), Mobile when touch is the preferred input (`UserInputService.PreferredInput`), Desktop otherwise
   - Output profiles, such as Headphones: `SetOutputProfile`
   - Snapshots: `Push(name, { Priority })` returns a handle with `Pop()`
   - `GetLayers`, `GetResolved`, `GetSnapshots`, `Changed`
