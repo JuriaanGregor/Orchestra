@@ -7,9 +7,6 @@
 			"$className": "ReplicatedStorage",
             "Packages": {
                 "$path": "Packages",
-                "t": {
-                    "$path": "Lib/t"
-                },
                 "Orchestra": {
                     "$path": "src/Orchestra"
                 }
