@@ -1,16 +1,42 @@
 [package]
 name = "juriaan/orchestra"
+description = "A Roblox audio framework: wire Audio API instances together like a mixing desk"
 version = "0.0.2"
+license = "MIT"
+authors = ["Juriaan G."]
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
+# Only the library is published (default.project.json points at src/Orchestra); exclude repo tooling and builds
+exclude = [
+	"**/.DS_Store",
+	".github",
+	".lute",
+	".vscode",
+	"build",
+	"scripts",
+	"src/TestEnv",
+	"src/.luaurc",
+	"WallyPatches",
+	"Packages",
+	"DevPackages",
+	"sourcemap.json",
+	"globalTypes.d.luau",
+	"test.project.json",
+	"moonwave.toml",
+	"rokit.toml",
+	"selene.toml",
+	"stylua.toml",
+	"Version.txt",
+	"*.rbxl",
+	"*.rbxlx",
+]
 
 [place]
 shared-packages = "game.ReplicatedStorage.Packages"
 dev-packages = "game.ReplicatedStorage.DevPackages"
 
 [dependencies]
-Component = "sleitnick/component@2.4.8"
-React = "jsdotlua/react@17.2.1"
+t = "osyrisrblx/t@3.1.1"
 Trove = "sleitnick/trove@1.8.0"
 Signals = "roblox/signals@0.9.0"
 EnumList = "sleitnick/enum-list@2.1.0"

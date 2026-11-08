@@ -1,29 +1,6 @@
 {
 	"name": "Orchestra",
-	"servePort": 34872,
 	"tree": {
-		"$className": "DataModel",
-		"ReplicatedStorage": {
-			"$className": "ReplicatedStorage",
-            "Audio": {
-                "$path": "src",
-                "Packages": {
-                    "$className": "Folder",
-                    "$path": "Packages",
-                    "t": {
-                        "$path": "Lib/t"
-                    }
-                }
-            }
-		},
-        "StarterPlayer": {
-            "$className": "StarterPlayer",
-            "StarterPlayerScripts": {
-                "$className": "StarterPlayerScripts",
-                "TestEnv": {
-                    "$path": "TestEnv/Client"
-                }
-            }
-        }
-    }
+		"$path": "src/Orchestra"
+	}
 }

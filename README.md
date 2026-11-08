@@ -2,7 +2,16 @@
 
 **Orchestra** is a Roblox audio framework written in Luau. It wraps Roblox's Audio API instances (`AudioPlayer`, `AudioFader`, `AudioEmitter`, `Wire`, ...) in components you wire together, like a DAW or a mixing desk. On the client it builds a mixer for you: one bus per sound category (`SFX`, `Music`, `UI`, ...), feeding into a Master fader.
 
-> **Status:** early development (`v0.0.2`). The API may still change, and Orchestra is not published to Wally yet.
+> **Status:** early development (`v0.0.2`). The API may still change.
+
+## Installation
+
+Add Orchestra to your `wally.toml` and run `wally install`:
+
+```toml
+[dependencies]
+Orchestra = "juriaan/orchestra@0.0.2"
+```
 
 ## Getting started
 
@@ -67,4 +76,4 @@ luau-lsp analyze --definitions=@roblox=globalTypes.d.luau --sourcemap sourcemap.
 
 `globalTypes.d.luau` comes from the [luau-lsp repository](https://github.com/JohnnyMorganz/luau-lsp/blob/master/scripts/globalTypes.d.luau); `.lute/build.luau` downloads it.
 
-Dependencies are listed in `wally.toml`. Two non-Wally details: [t](https://github.com/osyrisrblx/t) is vendored in `Lib/t`, and Signals is patched (`WallyPatches/`) so its React module can find React.
+Dependencies are listed in `wally.toml`. Locally, Signals is patched (`WallyPatches/`) so its React module can find React; Orchestra itself doesn't use that module, so the published package doesn't need the patch.
