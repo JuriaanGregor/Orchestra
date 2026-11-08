@@ -31,10 +31,29 @@ local function CreateStream(streamType: Enums.EnumItem, parent: Instance, props:
 end
 
 ---------------------------------------------------------------------
+--[=[
+	@class Stream
+	@tag Stream
+
+	Creates stream (source) components: [AudioPlayer], [AudioDeviceInput], [AudioListener] and [AudioTextToSpeech]. Reached through `Orchestra.Stream`.
+
+	```lua
+	Orchestra.Stream.new(Enums.Stream.Player, speaker, { Asset = "rbxassetid://15287092994" })
+	```
+]=]
 local AudioStream = {}
 AudioStream.__index = AudioStream
 
 local tAudioStream = t.tuple(t.table, t.Instance, t.optional(t.map(t.string, t.any)))
+--[=[
+	@within Stream
+	Creates a component of type `streamType`.
+
+	@param streamType EnumItem -- One of [Enums.Stream]
+	@param parent Instance -- Where the instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return any -- The component, see the classes listed above
+]=]
 function AudioStream.new(streamType: Enums.EnumItem, parent: Instance, props: { [string]: any }?): Types.AUStream
 	assert(tAudioStream(streamType, parent, props))
 

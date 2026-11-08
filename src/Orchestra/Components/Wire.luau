@@ -5,6 +5,7 @@ local HttpService = game:GetService("HttpService")
 
 -- Import > Packages
 local applyInstanceProps = require("../Instances/applyInstanceProps")
+local bindLifetime = require("../Instances/bindLifetime")
 local Dependencies = require("../Dependencies")
 local t = Dependencies.t
 local Trove = Dependencies.Trove
@@ -37,14 +38,27 @@ AudioWire.__index = AudioWire
 	@class Wire
 	@tag Base
 
-	Represents a Wire that connects two Audio Instances together.
+	Wraps a Roblox `Wire`, which carries audio from one instance's output pin to another's input pin.
+	[Routing] creates these for you.
+]=]
+
+--[=[
+	@prop Instance Wire
+	@within Wire
+	@readonly
+
+	The wrapped `Wire` instance. Its `ID` attribute matches [Wire.GetWireById].
 ]=]
 
 local tAudioWire = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 
 --[=[
 	@within Wire
-	Creates a new AudioWire
+	Creates a new Wire under `parent`.
+
+	@param parent Instance
+	@param props { [string]: any }? -- `Wire` properties such as `SourceInstance`, `TargetInstance`, `SourceName` and `TargetName`, plus `Name`, `Tags` and `Attributes`
+	@return Wire
 ]=]
 function AudioWire.new(parent: Instance, props: { [string]: any }?): Types.AUWire
 	assert(tAudioWire(parent, props))
@@ -88,8 +102,8 @@ function AudioWire.new(parent: Instance, props: { [string]: any }?): Types.AUWir
 		WIRES[ID] = nil
 	end)
 
-	-- Attach to Instance
-	self._trove:AttachToInstance(self.Instance)
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	bindLifetime(self._trove, self.Instance)
 
 	-- Add our Wire our WIRES table
 	WIRES[ID] = self.Instance
@@ -100,9 +114,11 @@ end
 local tGetWireById = t.tuple(t.string)
 --[=[
 	@within Wire
-	Gets an AudioWire by its ID
-]=]
+	Returns the `Wire` instance with the given `ID` attribute, if it still exists.
 
+	@param id string
+	@return Wire?
+]=]
 function AudioWire.GetWireById(id: string): Wire?
 	assert(tGetWireById(id))
 	if WIRES[id] then
@@ -123,7 +139,9 @@ end
 
 --[=[
 	@within Wire
-	Checks if the AudioWire is connected
+	Returns whether audio flows through the wire (both ends are set and their pins are compatible).
+
+	@return boolean
 ]=]
 function AudioWire:IsConnected(): boolean
 	return self.Instance.Connected
@@ -131,7 +149,7 @@ end
 
 --[=[
 	@within Wire
-	Destroys the AudioWire
+	Destroys the Wire and its `Wire` instance.
 ]=]
 function AudioWire:Destroy()
 	self._trove:Destroy()

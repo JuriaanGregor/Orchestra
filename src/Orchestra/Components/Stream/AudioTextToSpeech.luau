@@ -8,6 +8,7 @@ local Promise = Dependencies.Promise
 
 -- Imports > Package
 local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local bindLifetime = require("../../Instances/bindLifetime")
 local Routing = require("../Routing")
 
 -- Types
@@ -41,13 +42,66 @@ AudioTextToSpeech.__index = AudioTextToSpeech
 	@class AudioTextToSpeech
 	@tag Stream
 
-	Represents an AudioTextToSpeech. This is used to convert text to speech.
+	Wraps an `AudioTextToSpeech`, which speaks text aloud.
+
+	Create one with `Orchestra.Stream.new(Enums.Stream.TextToSpeech, parent, props)`.
 ]=]
 
 --[=[
-	Creates a new AudioTextToSpeech.
+	@prop Instance AudioTextToSpeech
+	@within AudioTextToSpeech
+	@readonly
+
+	The wrapped `AudioTextToSpeech` instance.
 ]=]
 
+--[=[
+	@prop Routing Routing
+	@within AudioTextToSpeech
+	@readonly
+
+	Wires this component to others, see [Routing].
+]=]
+
+--[=[
+	@prop Out AudioTextToSpeech
+	@within AudioTextToSpeech
+	@readonly
+
+	The instance to wire from (same as `Instance`).
+]=]
+
+--[=[
+	@prop Text string?
+	@within AudioTextToSpeech
+	@readonly
+
+	The text last passed to [AudioTextToSpeech:LoadText].
+]=]
+
+--[=[
+	@prop Ended RBXScriptSignal
+	@within AudioTextToSpeech
+	@readonly
+
+	The instance's `Ended` event, fired when the speech finishes.
+]=]
+
+--[=[
+	@prop Looped RBXScriptSignal
+	@within AudioTextToSpeech
+	@readonly
+
+	The instance's `Looped` event, fired each time the speech loops.
+]=]
+
+--[=[
+	Creates a new AudioTextToSpeech under `parent`. Usually created through `Orchestra.Stream.new`.
+
+	@param parent Instance -- Where the `AudioTextToSpeech` instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return AudioTextToSpeech
+]=]
 function AudioTextToSpeech.new(parent: Instance, props: { [string]: any }?): Types.AUTextToSpeech
 	assert(tAudioTextToSpeech(parent, props))
 
@@ -65,20 +119,20 @@ function AudioTextToSpeech.new(parent: Instance, props: { [string]: any }?): Typ
 	-- Create our routing
 	self.Routing = Routing.new(self.Instance)
 
-	-- Attach to Instance
-	self._trove:AttachToInstance(self.Instance)
-
 	-- Make sure to unload our text to speech when destroyed
 	self._trove:Add(function()
 		self.Instance:Unload()
 	end)
+
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	bindLifetime(self._trove, self.Instance, self.Routing)
 
 	self.Text = nil :: string?
 
 	self.Ended = self.Instance.Ended :: RBXScriptSignal
 	self.Looped = self.Instance.Looped :: RBXScriptSignal
 
-	self.In = self.Instance
+	-- AudioTextToSpeech only has an Output pin, so there is no `In`
 	self.Out = self.Instance
 
 	return setmetatable(self :: any, AudioTextToSpeech) :: Types.AUTextToSpeech
@@ -89,9 +143,8 @@ function AudioTextToSpeech:__tostring()
 end
 
 --[=[
-	Plays the AudioTextToSpeech.
+	Plays the speech. If the text isn't loaded yet, it loads it first and then plays; a failed load is reported with `warn`.
 ]=]
-
 function AudioTextToSpeech:Play()
 	if self.Instance.IsLoaded then
 		self.Instance:Play()
@@ -109,17 +162,17 @@ function AudioTextToSpeech:Play()
 end
 
 --[=[
-	Pauses the AudioTextToSpeech.
+	Pauses the speech.
 ]=]
-
 function AudioTextToSpeech:Pause()
 	self.Instance:Pause()
 end
 
 --[=[
-	Loads the AudioTextToSpeech's current Text. Returns a Promise that resolves once it's loaded.
-]=]
+	Loads the instance's current `Text`. The Promise is cancelled if the AudioTextToSpeech is destroyed while loading.
 
+	@return Promise -- Resolves once loaded, rejects if loading fails or times out
+]=]
 function AudioTextToSpeech:Load()
 	-- LoadAsync yields, so we run it inside a Promise. The trove cancels it if we're destroyed mid-load.
 	return self._trove:AddPromise(Promise.new(function(resolve, reject)
@@ -140,9 +193,11 @@ function AudioTextToSpeech:Load()
 end
 
 --[=[
-	Sets the text to speak and loads it. Returns a Promise that resolves once the text is loaded.
-]=]
+	Sets the text to speak and loads it.
 
+	@param text string -- The text to speak
+	@return Promise -- See [AudioTextToSpeech:Load]
+]=]
 function AudioTextToSpeech:LoadText(text: string)
 	self.Text = text
 	self.Instance.Text = text
@@ -151,7 +206,8 @@ function AudioTextToSpeech:LoadText(text: string)
 end
 
 --[=[
-	Destroys the AudioTextToSpeech
+	Destroys the AudioTextToSpeech: its instance, and every wire into or out of it.
+	Destroying the instance directly does the same.
 ]=]
 function AudioTextToSpeech:Destroy()
 	self._trove:Destroy()

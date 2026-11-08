@@ -29,10 +29,29 @@ local function CreateAnalyzer(analyzerType: Enums.EnumItem, parent: Instance, pr
 end
 
 ---------------------------------------------------------------------
+--[=[
+	@class Analyzers
+	@tag Analyzer
+
+	Creates analyzer components: [AudioSpectrumAnalyzer]. Reached through `Orchestra.Analyzers`.
+
+	```lua
+	Orchestra.Analyzers.new(Enums.Analyzer.Spectrum, speaker)
+	```
+]=]
 local AudioAnalyzer = {}
 AudioAnalyzer.__index = AudioAnalyzer
 
 local tAudioAnalyzer = t.tuple(Types.tAudioAnalyzer, t.Instance, t.optional(t.map(t.string, t.any)))
+--[=[
+	@within Analyzers
+	Creates a component of type `analyzerType`.
+
+	@param analyzerType EnumItem -- One of [Enums.Analyzer]
+	@param parent Instance -- Where the instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return any -- The component, see the classes listed above
+]=]
 function AudioAnalyzer.new(analyzerType: Enums.EnumItem, parent: Instance, props: { [string]: any }?): Types.AUAnalyzer
 	assert(tAudioAnalyzer(analyzerType.Name, parent, props))
 

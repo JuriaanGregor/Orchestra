@@ -10,6 +10,7 @@ local Types = require("../../Types")
 
 -- Imports > Package
 local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local bindLifetime = require("../../Instances/bindLifetime")
 local Routing = require("../Routing")
 
 -- Functions
@@ -35,13 +36,50 @@ AudioChannelMixer.__index = AudioChannelMixer
 	@class AudioChannelMixer
 	@tag Transforms
 
-	Represents an AudioChannelMixer. This is used to mix audio channels, allowing for individual channel processing.
+	Wraps an `AudioChannelMixer`, which combines individual channels (`Left`, `Right`, `Center`, ...) into one multichannel stream.
+
+	Create one with `Orchestra.Transforms.new(Enums.Transform.ChannelMixer, parent, props)`.
 ]=]
 
 --[=[
-	Creates a new AudioChannelMixer.
+	@prop Instance AudioChannelMixer
+	@within AudioChannelMixer
+	@readonly
+
+	The wrapped `AudioChannelMixer` instance.
 ]=]
 
+--[=[
+	@prop Routing Routing
+	@within AudioChannelMixer
+	@readonly
+
+	Wires this component to others, see [Routing].
+]=]
+
+--[=[
+	@prop In AudioChannelMixer
+	@within AudioChannelMixer
+	@readonly
+
+	The instance to wire into (same as `Instance`).
+]=]
+
+--[=[
+	@prop Out AudioChannelMixer
+	@within AudioChannelMixer
+	@readonly
+
+	The instance to wire from (same as `Instance`).
+]=]
+
+--[=[
+	Creates a new AudioChannelMixer under `parent`. Usually created through `Orchestra.Transforms.new`.
+
+	@param parent Instance -- Where the `AudioChannelMixer` instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return AudioChannelMixer
+]=]
 function AudioChannelMixer.new(parent: Instance, props: { [string]: any }?): Types.AUChannelMixer
 	assert(tAudioChannelMixer(parent, props))
 
@@ -59,8 +97,8 @@ function AudioChannelMixer.new(parent: Instance, props: { [string]: any }?): Typ
 	-- Create our routing
 	self.Routing = Routing.new(self.Instance)
 
-	-- Attach to Instance
-	self._trove:AttachToInstance(self.Instance)
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	bindLifetime(self._trove, self.Instance, self.Routing)
 
 	self.In = self.Instance
 	self.Out = self.Instance
@@ -73,7 +111,8 @@ function AudioChannelMixer:__tostring()
 end
 
 --[=[
-	Destroys the AudioChannelMixer
+	Destroys the AudioChannelMixer: its instance, and every wire into or out of it.
+	Destroying the instance directly does the same.
 ]=]
 function AudioChannelMixer:Destroy()
 	self._trove:Destroy()

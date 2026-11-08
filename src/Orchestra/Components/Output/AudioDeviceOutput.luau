@@ -10,6 +10,7 @@ local Types = require("../../Types")
 
 -- Import > Package
 local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local bindLifetime = require("../../Instances/bindLifetime")
 local Routing = require("../Routing")
 
 -- Functions
@@ -37,14 +38,43 @@ AudioDeviceOutput.__index = AudioDeviceOutput
 	@class AudioDeviceOutput
 	@tag Output
 
-	Represents an audio device output. This is used to output audio to a specific output device.
+	Wraps an `AudioDeviceOutput`, which plays audio on a player's speakers or headphones. The engine creates one, `MainOut`, in [Orchestra:Start].
+
+	Create one with `Orchestra.Output.new(Enums.Output.Device, parent, props)`.
+]=]
+
+--[=[
+	@prop Instance AudioDeviceOutput
+	@within AudioDeviceOutput
+	@readonly
+
+	The wrapped `AudioDeviceOutput` instance.
+]=]
+
+--[=[
+	@prop Routing Routing
+	@within AudioDeviceOutput
+	@readonly
+
+	Wires this component to others, see [Routing].
+]=]
+
+--[=[
+	@prop In AudioDeviceOutput
+	@within AudioDeviceOutput
+	@readonly
+
+	The instance to wire into (same as `Instance`).
 ]=]
 
 local tAudioDeviceOutput = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 --[=[
-	Creates a new AudioDeviceOutput.
-]=]
+	Creates a new AudioDeviceOutput under `parent`. Usually created through `Orchestra.Output.new`.
 
+	@param parent Instance -- Where the `AudioDeviceOutput` instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return AudioDeviceOutput
+]=]
 function AudioDeviceOutput.new(parent: Instance, props: { [string]: any }?): Types.AUDeviceOutput
 	assert(tAudioDeviceOutput(parent, props))
 
@@ -65,8 +95,8 @@ function AudioDeviceOutput.new(parent: Instance, props: { [string]: any }?): Typ
 	-- Expose our members
 	self.In = self.Instance
 
-	-- Attach to Instance
-	self._trove:AttachToInstance(self.Instance)
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	bindLifetime(self._trove, self.Instance, self.Routing)
 
 	return setmetatable(self :: any, AudioDeviceOutput) :: Types.AUDeviceOutput
 end
@@ -76,7 +106,8 @@ function AudioDeviceOutput:__tostring()
 end
 
 --[=[
-	Destroys the AudioDeviceOutput.
+	Destroys the AudioDeviceOutput: its instance, and every wire into or out of it.
+	Destroying the instance directly does the same.
 ]=]
 function AudioDeviceOutput:Destroy()
 	self._trove:Destroy()

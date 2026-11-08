@@ -13,6 +13,7 @@ local Types = require("../../Types")
 
 -- Imports > Package
 local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local bindLifetime = require("../../Instances/bindLifetime")
 local Routing = require("../Routing")
 
 -- Functions
@@ -119,16 +120,64 @@ local AudioPlayer = {}
 AudioPlayer.__index = AudioPlayer
 
 --[=[
-	@class AudioPlayer 
+	@class AudioPlayer
 	@tag Stream
-	
-	Represents an audio player that can be used to play audio in the game.
+
+	Wraps an `AudioPlayer`, which plays an audio asset.
+
+	The asset can be passed in `props` as `Asset`, `AssetId`, `SoundId`, `Sound` or `Content`: an `rbxassetid://` string, an asset id number, or a `Sound` to copy the id from.
+
+	Create one with `Orchestra.Stream.new(Enums.Stream.Player, parent, props)`.
+]=]
+
+--[=[
+	@prop Instance AudioPlayer
+	@within AudioPlayer
+	@readonly
+
+	The wrapped `AudioPlayer` instance.
+]=]
+
+--[=[
+	@prop Routing Routing
+	@within AudioPlayer
+	@readonly
+
+	Wires this component to others, see [Routing].
+]=]
+
+--[=[
+	@prop Out AudioPlayer
+	@within AudioPlayer
+	@readonly
+
+	The instance to wire from (same as `Instance`).
+]=]
+
+--[=[
+	@prop Ended RBXScriptSignal
+	@within AudioPlayer
+	@readonly
+
+	The instance's `Ended` event, fired when playback reaches the end.
+]=]
+
+--[=[
+	@prop Looped RBXScriptSignal
+	@within AudioPlayer
+	@readonly
+
+	The instance's `Looped` event, fired each time playback loops.
 ]=]
 
 local tAudioPlayer = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 
 --[=[
-	Creates a new AudioPlayer
+	Creates a new AudioPlayer under `parent`. Usually created through `Orchestra.Stream.new`.
+
+	@param parent Instance -- Where the `AudioPlayer` instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return AudioPlayer
 ]=]
 function AudioPlayer.new(parent: Instance, props: { [string]: any }?): Types.AUPlayback
 	assert(tAudioPlayer(parent, props))
@@ -158,14 +207,16 @@ function AudioPlayer.new(parent: Instance, props: { [string]: any }?): Types.AUP
 	-- Expose our members
 	self.Out = self.Instance
 
-	-- Attach to Instance
-	self._trove:AttachToInstance(self.Instance)
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	bindLifetime(self._trove, self.Instance, self.Routing)
 
 	return setmetatable(self :: any, AudioPlayer) :: Types.AUPlayback
 end
 
 --[=[
-	Plays the audio
+	Plays the audio.
+
+	@return number -- The length of the loaded asset in seconds (`TimeLength`)
 ]=]
 function AudioPlayer:Play()
 	self.Instance:Play()
@@ -174,14 +225,14 @@ function AudioPlayer:Play()
 end
 
 --[=[
-	Pauses the audio
+	Pauses the audio, keeping its position.
 ]=]
 function AudioPlayer:Pause()
 	self.Instance:Pause()
 end
 
 --[=[
-	Stops the audio
+	Stops the audio and rewinds it to the start.
 ]=]
 function AudioPlayer:Stop()
 	self.Instance:Stop()
@@ -189,7 +240,8 @@ function AudioPlayer:Stop()
 end
 
 --[=[
-	Destroys the AudioPlayer
+	Destroys the AudioPlayer: its instance, and every wire into or out of it.
+	Destroying the instance directly does the same.
 ]=]
 function AudioPlayer:Destroy()
 	self._trove:Destroy()

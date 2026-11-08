@@ -7,6 +7,7 @@ local Trove = Dependencies.Trove
 
 -- Imports > Package
 local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local bindLifetime = require("../../Instances/bindLifetime")
 local Routing = require("../Routing")
 
 -- Functions
@@ -32,13 +33,50 @@ AudioTremolo.__index = AudioTremolo
 	@class AudioTremolo
 	@tag Effects
 
-	Represents an audio tremolo. This is used to adjust the audio tremolo properties.
+	Wraps an `AudioTremolo`, which modulates the volume of a sound.
+
+	Create one with `Orchestra.Effects.new(Enums.Effect.Tremolo, parent, props)`.
 ]=]
 
 --[=[
-	Creates a new AudioTremolo.
+	@prop Instance AudioTremolo
+	@within AudioTremolo
+	@readonly
+
+	The wrapped `AudioTremolo` instance.
 ]=]
 
+--[=[
+	@prop Routing Routing
+	@within AudioTremolo
+	@readonly
+
+	Wires this component to others, see [Routing].
+]=]
+
+--[=[
+	@prop In AudioTremolo
+	@within AudioTremolo
+	@readonly
+
+	The instance to wire into (same as `Instance`).
+]=]
+
+--[=[
+	@prop Out AudioTremolo
+	@within AudioTremolo
+	@readonly
+
+	The instance to wire from (same as `Instance`).
+]=]
+
+--[=[
+	Creates a new AudioTremolo under `parent`. Usually created through `Orchestra.Effects.new`.
+
+	@param parent Instance -- Where the `AudioTremolo` instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return AudioTremolo
+]=]
 function AudioTremolo.new(parent: Instance, props: { [string]: any }?)
 	assert(tAudioTremolo(parent, props))
 
@@ -56,8 +94,8 @@ function AudioTremolo.new(parent: Instance, props: { [string]: any }?)
 	-- Create our routing
 	self.Routing = Routing.new(self.Instance)
 
-	-- Attach to Instance
-	self._trove:AttachToInstance(self.Instance)
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	bindLifetime(self._trove, self.Instance, self.Routing)
 
 	self.In = self.Instance
 	self.Out = self.Instance
@@ -70,7 +108,8 @@ function AudioTremolo:__tostring()
 end
 
 --[=[
-	Destroys the AudioTremolo.
+	Destroys the AudioTremolo: its instance, and every wire into or out of it.
+	Destroying the instance directly does the same.
 ]=]
 function AudioTremolo:Destroy()
 	self._trove:Destroy()

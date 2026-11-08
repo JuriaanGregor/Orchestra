@@ -29,9 +29,28 @@ local function CreateOutput(outputType: Enums.EnumItem, parent: Instance, props:
 end
 
 ---------------------------------------------------------------------
+--[=[
+	@class Output
+	@tag Output
+
+	Creates output components: [AudioDeviceOutput] and [AudioEmitter]. Reached through `Orchestra.Output`.
+
+	```lua
+	Orchestra.Output.new(Enums.Output.Emitter, speaker, { AudioInteractionGroup = "Music" })
+	```
+]=]
 local AudioOutput = {}
 AudioOutput.__index = AudioOutput
 
+--[=[
+	@within Output
+	Creates a component of type `outputType`.
+
+	@param outputType EnumItem -- One of [Enums.Output]
+	@param parent Instance -- Where the instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return any -- The component, see the classes listed above
+]=]
 function AudioOutput.new(outputType: Enums.EnumItem, parent: Instance, props: { [string]: any }?): Types.AUOutput
 	assert(tCreateOutput(outputType, parent, props))
 

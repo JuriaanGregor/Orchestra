@@ -7,6 +7,7 @@ local Trove = Dependencies.Trove
 
 -- Imports > Package
 local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local bindLifetime = require("../../Instances/bindLifetime")
 local Routing = require("../Routing")
 
 -- Functions
@@ -32,13 +33,50 @@ AudioFlanger.__index = AudioFlanger
 	@class AudioFlanger
 	@tag Effects
 
-	Represents an audio flanger. This is used to adjust the audio flanger properties.
+	Wraps an `AudioFlanger`, which mixes a sound with a short, modulated delay of itself.
+
+	Create one with `Orchestra.Effects.new(Enums.Effect.Flanger, parent, props)`.
 ]=]
 
 --[=[
-	Creates a new AudioFlanger.
+	@prop Instance AudioFlanger
+	@within AudioFlanger
+	@readonly
+
+	The wrapped `AudioFlanger` instance.
 ]=]
 
+--[=[
+	@prop Routing Routing
+	@within AudioFlanger
+	@readonly
+
+	Wires this component to others, see [Routing].
+]=]
+
+--[=[
+	@prop In AudioFlanger
+	@within AudioFlanger
+	@readonly
+
+	The instance to wire into (same as `Instance`).
+]=]
+
+--[=[
+	@prop Out AudioFlanger
+	@within AudioFlanger
+	@readonly
+
+	The instance to wire from (same as `Instance`).
+]=]
+
+--[=[
+	Creates a new AudioFlanger under `parent`. Usually created through `Orchestra.Effects.new`.
+
+	@param parent Instance -- Where the `AudioFlanger` instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return AudioFlanger
+]=]
 function AudioFlanger.new(parent: Instance, props: { [string]: any }?)
 	assert(tAudioFlanger(parent, props))
 
@@ -56,8 +94,8 @@ function AudioFlanger.new(parent: Instance, props: { [string]: any }?)
 	-- Create our routing
 	self.Routing = Routing.new(self.Instance)
 
-	-- Attach to Instance
-	self._trove:AttachToInstance(self.Instance)
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	bindLifetime(self._trove, self.Instance, self.Routing)
 
 	self.In = self.Instance
 	self.Out = self.Instance
@@ -70,7 +108,8 @@ function AudioFlanger:__tostring()
 end
 
 --[=[
-	Destroys the AudioFlanger.
+	Destroys the AudioFlanger: its instance, and every wire into or out of it.
+	Destroying the instance directly does the same.
 ]=]
 function AudioFlanger:Destroy()
 	self._trove:Destroy()

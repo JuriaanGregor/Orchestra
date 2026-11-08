@@ -10,6 +10,7 @@ local Types = require("../../Types")
 
 -- Imports > Package
 local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local bindLifetime = require("../../Instances/bindLifetime")
 local Routing = require("../Routing")
 
 -- Functions
@@ -35,13 +36,59 @@ AudioChannelSplitter.__index = AudioChannelSplitter
 	@class AudioChannelSplitter
 	@tag Transforms
 
-	Represents an AudioChannelSplitter. This is used to split audio channels, allowing for individual channel processing.
+	Wraps an `AudioChannelSplitter`, which splits a multichannel stream into one output pin per channel (`Left`, `Right`, `Center`, ...).
+
+	Use [Routing:Wire] to wire a specific channel:
+
+	```lua
+	splitter.Routing:Wire(
+		{ Instance = splitter.Instance, PinType = Enums.Pin.Output, Pin = "Left" },
+		{ Instance = emitterL.Instance, PinType = Enums.Pin.Input }
+	)
+	```
+
+	Create one with `Orchestra.Transforms.new(Enums.Transform.ChannelSplitter, parent, props)`.
 ]=]
 
 --[=[
-	Creates a new AudioChannelSplitter.
+	@prop Instance AudioChannelSplitter
+	@within AudioChannelSplitter
+	@readonly
+
+	The wrapped `AudioChannelSplitter` instance.
 ]=]
 
+--[=[
+	@prop Routing Routing
+	@within AudioChannelSplitter
+	@readonly
+
+	Wires this component to others, see [Routing].
+]=]
+
+--[=[
+	@prop In AudioChannelSplitter
+	@within AudioChannelSplitter
+	@readonly
+
+	The instance to wire into (same as `Instance`).
+]=]
+
+--[=[
+	@prop Out AudioChannelSplitter
+	@within AudioChannelSplitter
+	@readonly
+
+	The instance to wire from (same as `Instance`).
+]=]
+
+--[=[
+	Creates a new AudioChannelSplitter under `parent`. Usually created through `Orchestra.Transforms.new`.
+
+	@param parent Instance -- Where the `AudioChannelSplitter` instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return AudioChannelSplitter
+]=]
 function AudioChannelSplitter.new(parent: Instance, props: { [string]: any }?): Types.AUChannelSplitter
 	assert(tAudioChannelSplitter(parent, props))
 
@@ -59,8 +106,8 @@ function AudioChannelSplitter.new(parent: Instance, props: { [string]: any }?): 
 	-- Create our routing
 	self.Routing = Routing.new(self.Instance)
 
-	-- Attach to Instance
-	self._trove:AttachToInstance(self.Instance)
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	bindLifetime(self._trove, self.Instance, self.Routing)
 
 	self.In = self.Instance
 	self.Out = self.Instance
@@ -73,7 +120,8 @@ function AudioChannelSplitter:__tostring()
 end
 
 --[=[
-	Destroys the AudioChannelSplitter
+	Destroys the AudioChannelSplitter: its instance, and every wire into or out of it.
+	Destroying the instance directly does the same.
 ]=]
 function AudioChannelSplitter:Destroy()
 	self._trove:Destroy()

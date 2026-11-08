@@ -129,7 +129,6 @@ export type AUListener = Node<AudioListener> & {
 }
 
 export type AUTextToSpeech = Node<AudioTextToSpeech> & {
-	In: AudioTextToSpeech,
 	Out: AudioTextToSpeech,
 	Text: string?,
 	Ended: RBXScriptSignal,
@@ -202,7 +201,7 @@ export type AULimiter = Node<AudioLimiter> & {
 ---------------------------------------------------------------------
 -- Analyzers
 
-export type AUAnalyzer = Object<AudioAnalyzer> & {
+export type AUAnalyzer = Node<AudioAnalyzer> & {
 	In: AudioAnalyzer,
 	GetSpectrum: (self: any) -> { number },
 	ObserveSpectrum: (self: any) -> (Dependencies.Getter<{ number }>, () -> ()),

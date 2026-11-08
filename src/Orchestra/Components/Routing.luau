@@ -69,9 +69,24 @@ local tAudioRouting = t.tuple(t.Instance, t.optional(t.array(t.table)))
 	@class Routing
 	@tag Base
 
-	Represents an AudioRouting, which is used to route audio from one instance to another.
+	Knows the input and output pins of one audio instance and creates `Wire`s from it. Every component that can be wired
+	has one as its `Routing`.
+
+	```lua
+	layer.Routing:WireTo(reverb.In)            -- default pins
+	source.Routing:WireTo(compressor.In, "Sidechain")
+	```
 ]=]
 
+--[=[
+	@within Routing
+	Creates a Routing for `parent`. Pins are read from the instance; for anything that isn't an audio instance, pass them.
+	Components create their own Routing, so you rarely need this.
+
+	@param parent Instance -- The audio instance to route
+	@param pins { EnumItem }? -- Pin types (from [Enums.Pin]) to use when `parent` isn't an audio instance
+	@return Routing
+]=]
 function AudioRouting.new(parent: Types.AudioMembers | Instance, pins: { Enums.EnumItem }?)
 	assert(tAudioRouting(parent, pins))
 
@@ -96,6 +111,15 @@ function AudioRouting.new(parent: Types.AudioMembers | Instance, pins: { Enums.E
 		-- Mark our self as an AudioMember
 		self.IsAudioMember = true
 		self.AudioMember = parent :: Types.AudioMembers
+
+		-- Remember wires connected into us. They're created by other Routings, and once our instance is destroyed
+		-- they can no longer be looked up, so we track them as they connect (weak keys: destroyed wires can be collected)
+		self._incomingWires = setmetatable({}, { __mode = "k" })
+		self._trove:Connect((parent :: any).WiringChanged, function(connected: boolean, _pin: string, wire: Wire)
+			if connected and wire.TargetInstance == (parent :: Instance) then
+				self._incomingWires[wire] = true
+			end
+		end)
 
 		-- We have a valid AudioMember, let's figure out the pins for this member.
 		-- If the instance can't report its pins, we allow wiring through its default pin (empty list).
@@ -129,9 +153,12 @@ end
 
 --[=[
 	@within Routing
-	Wires this AudioRouting from a given pin to another AudioRouting's pin
-]=]
+	Wires two explicit pins together, for example one channel of an [AudioChannelSplitter]. Allowed: Output to Input,
+	Input to Output.
 
+	@param from { Instance: Instance, PinType: EnumItem, Pin: string? } -- Source instance, its [Enums.Pin] type, and pin name (nil for the default pin)
+	@param to { Instance: Instance, PinType: EnumItem, Pin: string? } -- Target instance, its [Enums.Pin] type, and pin name (nil for the default pin)
+]=]
 function AudioRouting:Wire(from: AudioRoutingPin, to: AudioRoutingPin)
 	local wire
 
@@ -168,9 +195,11 @@ end
 
 --[=[
 	@within Routing
-	Wires this AudioRouting from a given AudioMember to another AudioMember, it will automatically figure out the pins to wire from and to based on the available pins on the source and target AudioMembers
-]=]
+	Wires this instance's output into `to`. Errors if `to` has no input pins, or no input pin named `toPin`.
 
+	@param to Instance -- The audio instance to wire into, usually another component's `In`
+	@param toPin string? -- Input pin on `to`, for example `"Sidechain"`. Defaults to its default input pin
+]=]
 function AudioRouting:WireTo(to: Types.AudioMembers, toPin: string?)
 	if not self.AudioMember then
 		error("Only AudioMembers can be wired to other AudioMembers, this routing is not an AudioMember")
@@ -202,9 +231,11 @@ end
 
 --[=[
 	@within Routing
-	Wires this AudioRouting from a given AudioMember to another AudioMember, it will automatically figure out the pins to wire from and to based on the available pins on the source and target AudioMembers
-]=]
+	Wires `from`'s output into this instance. Errors if `from` has no output pins, or no output pin named `fromPin`.
 
+	@param from Instance -- The audio instance to wire from, usually another component's `Out`
+	@param fromPin string? -- Output pin on `from`, for example `"Left"`. Defaults to its default output pin
+]=]
 function AudioRouting:WireFrom(from: Types.AudioMembers, fromPin: string?)
 	if not self.AudioMember then
 		error("Only AudioMembers can be wired from other AudioMembers, this routing is not an AudioMember")
@@ -236,10 +267,28 @@ end
 
 --[=[
 	@within Routing
-	Clears all wires from a given pin on this AudioRouting
+	Destroys the Routing: every wire it created, every wire connected into its instance (those live under the source's
+	`AudioRouter`), and its `AudioRouter` folder.
 ]=]
-
 function AudioRouting:Destroy()
+	-- Wires into us were created by other Routings, so they aren't in our trove
+	if self.AudioMember then
+		local incoming: { [Wire]: boolean } = table.clone(self._incomingWires)
+
+		-- Also catch anything connected in a way we didn't see (still possible while our instance exists)
+		local member = self.AudioMember :: any -- cast: Luau can't call a method on a union of instance classes
+		local inputPins: { string } = getPinNames(member, "GetInputPins") or {}
+		for _, pin in inputPins do
+			for _, wire in member:GetConnectedWires(pin) do
+				incoming[wire :: Wire] = true
+			end
+		end
+
+		for wire in incoming do
+			wire:Destroy()
+		end
+	end
+
 	self._trove:Destroy()
 end
 

@@ -11,6 +11,7 @@ local Promise = Dependencies.Promise
 
 -- Import > Package
 local Routing = require("./Routing")
+local bindLifetime = require("../Instances/bindLifetime")
 
 -- t
 local tVolume = t.numberConstrained(0, 3)
@@ -46,14 +47,69 @@ AudioFader.__index = AudioFader
 	@class Fader
 	@tag Base
 
-	Represents a AudioFader, which is a fader that can be used to control the volume of an audio source.
+	Wraps an `AudioFader`, which controls the volume of everything wired through it (0 - 3, where 1 is unchanged).
+	The mix buses and Master created by [Orchestra:Start] are Faders too.
+
+	`Tween`, `FadeIn`, `FadeOut` and `Mute` return a [Promise](https://eryn.io/roblox-lua-promise/) that resolves when the
+	fade completes. Starting another `Tween` / `Set`, or destroying the Fader, cancels it instead and leaves the volume
+	where it was.
+
+	```lua
+	music.Fader:FadeOut(2):andThen(function()
+		music:Stop()
+	end)
+	```
+]=]
+
+--[=[
+	@prop Instance AudioFader
+	@within Fader
+	@readonly
+
+	The wrapped `AudioFader` instance.
+]=]
+
+--[=[
+	@prop Routing Routing
+	@within Fader
+	@readonly
+
+	Wires this Fader to others, see [Routing].
+]=]
+
+--[=[
+	@prop In AudioFader
+	@within Fader
+	@readonly
+
+	The instance to wire into (same as `Instance`).
+]=]
+
+--[=[
+	@prop Out AudioFader
+	@within Fader
+	@readonly
+
+	The instance to wire from (same as `Instance`).
+]=]
+
+--[=[
+	@prop IsMuted boolean
+	@within Fader
+	@readonly
+
+	Whether the Fader is muted with [Fader:Mute].
 ]=]
 
 local tAudioFader = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 
 --[=[
 	@within Fader
-	Creates a new Fader
+	Creates a new Fader under `parent`.
+
+	@param parent Instance -- Where the `AudioFader` instance is created
+	@param props { Name: string?, Volume: number? }? -- `Name`, and a starting `Volume` (clamped to 0 - 3)
+	@return Fader
 ]=]
 function AudioFader.new(parent: Instance, props: { [string]: any }?)
 	assert(tAudioFader(parent, props))
@@ -78,7 +134,8 @@ function AudioFader.new(parent: Instance, props: { [string]: any }?)
 	self.In = self.Instance
 	self.Out = self.Instance
 
-	self._trove:AttachToInstance(self.Instance)
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	bindLifetime(self._trove, self.Instance, self.Routing)
 
 	return setmetatable(self :: any, AudioFader)
 end
@@ -91,8 +148,9 @@ local tSetFader = t.tuple(tVolume)
 
 --[=[
 	@within Fader
-	Sets the AudioFader to the desired volume
-	@param volume number[0,3] -- A number between 0 (min) and 3 (max)
+	Sets the volume immediately, cancelling any running fade. While muted, the volume is stored for when you unmute.
+
+	@param volume number -- 0 (silent) to 3, where 1 is unchanged
 ]=]
 function AudioFader:Set(volume: number)
 	assert(tSetFader(volume))
@@ -123,11 +181,11 @@ end
 local tTween = t.tuple(tVolume, t.optional(t.TweenInfo))
 --[=[
 	@within Fader
-	Tweens a Fader to goal
-	@param goal number[0,3] -- The goal for the Volume of the fader
-	@param tweenInfo TweenInfo? -- TweenInfo, if not provided a 1 second linear tween is used
+	Tweens the volume to `goal`. While muted, the goal is stored for when you unmute and the Promise resolves right away.
 
-	@return Promise -- Resolves when the tween completes. Cancelled when another Tween / Set interrupts it, or the Fader is destroyed.
+	@param goal number -- Target volume, 0 - 3
+	@param tweenInfo TweenInfo? -- Defaults to a 1 second linear tween
+	@return Promise -- Resolves when the tween completes, cancelled when interrupted or the Fader is destroyed
 ]=]
 function AudioFader:Tween(goal: number, tweenInfo: TweenInfo?)
 	assert(tTween(goal, tweenInfo))
@@ -182,13 +240,12 @@ end
 local tFadeOut = t.tuple(t.numberPositive, t.optional(tVolume))
 --[=[
 	@within Fader
-	FadeOut a fader in X duration
-	@param duration number -- The amount of seconds that it should take to fade-out the fader
-	@param goal number[0,3] -- The goal that we are targetting
+	Fades the volume down linearly over `duration` seconds.
 
-	@return Promise -- See Tween
+	@param duration number -- Seconds, greater than 0
+	@param goal number? -- Target volume, 0 - 3. Defaults to 0
+	@return Promise -- See [Fader:Tween]
 ]=]
-
 function AudioFader:FadeOut(duration: number, goal: number?)
 	assert(tFadeOut(duration, goal))
 
@@ -203,11 +260,11 @@ end
 local tFadeIn = t.tuple(t.numberPositive, t.optional(tVolume))
 --[=[
 	@within Fader
-	FadeIn a fader in X duration
-	@param duration number -- The amount of seconds that it should take to fade-in the fader
-	@param goal number[0,3] -- The goal that we are targetting
+	Fades the volume up linearly over `duration` seconds.
 
-	@return Promise -- See Tween
+	@param duration number -- Seconds, greater than 0
+	@param goal number? -- Target volume, 0 - 3. Defaults to 1
+	@return Promise -- See [Fader:Tween]
 ]=]
 function AudioFader:FadeIn(duration: number, goal: number?)
 	assert(tFadeIn(duration, goal))
@@ -223,12 +280,11 @@ end
 local tMute = t.tuple(t.optional(t.boolean))
 --[=[
 	@within Fader
-	Mutes a Fader
-	@param noTween boolean? -- When provided and set to true, this will disable any tweening and do a hard-cut instead.
+	Toggles mute. Muting fades to 0 over 0.5 seconds and remembers the volume; calling it again fades back to that volume.
 
-	@return Promise -- Resolves once the (un)mute fade completes, immediately with noTween
+	@param noTween boolean? -- Cut immediately instead of fading
+	@return Promise -- Resolves when the fade completes, right away with `noTween`
 ]=]
-
 function AudioFader:Mute(noTween: boolean?)
 	assert(tMute(noTween))
 
@@ -260,7 +316,8 @@ end
 
 --[=[
 	@within Fader
-	Destroys the AudioFader
+	Destroys the Fader: its instance, and every wire into or out of it.
+	Destroying the instance directly does the same.
 ]=]
 function AudioFader:Destroy()
 	self._trove:Destroy()

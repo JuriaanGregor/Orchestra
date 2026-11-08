@@ -31,9 +31,28 @@ function CreateTransform(transformType: Enums.EnumItem, parent: Instance, props:
 end
 
 ---------------------------------------------------------------------
+--[=[
+	@class Transforms
+	@tag Transforms
+
+	Creates transform components: [AudioChannelMixer], [AudioChannelSplitter], [AudioGate] and [AudioLimiter]. Reached through `Orchestra.Transforms`.
+
+	```lua
+	Orchestra.Transforms.new(Enums.Transform.ChannelSplitter, speaker, { Layout = Enum.AudioChannelLayout.Stereo })
+	```
+]=]
 local AudioTransforms = {}
 AudioTransforms.__index = AudioTransforms
 
+--[=[
+	@within Transforms
+	Creates a component of type `transformType`.
+
+	@param transformType EnumItem -- One of [Enums.Transform]
+	@param parent Instance -- Where the instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return any -- The component, see the classes listed above
+]=]
 function AudioTransforms.new(
 	transformType: Enums.EnumItem,
 	parent: Instance,

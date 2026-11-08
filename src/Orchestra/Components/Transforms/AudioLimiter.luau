@@ -10,6 +10,7 @@ local Types = require("../../Types")
 
 -- Imports > Package
 local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local bindLifetime = require("../../Instances/bindLifetime")
 local Routing = require("../Routing")
 
 -- Functions
@@ -36,13 +37,50 @@ AudioLimiter.__index = AudioLimiter
 	@class AudioLimiter
 	@tag Transforms
 
-	Represents an AudioLimiter. This is used to limit the audio signal to a specified threshold.
+	Wraps an `AudioLimiter`, which keeps the signal below a maximum level.
+
+	Create one with `Orchestra.Transforms.new(Enums.Transform.Limiter, parent, props)`.
 ]=]
 
 --[=[
-	Creates a new AudioLimiter.
+	@prop Instance AudioLimiter
+	@within AudioLimiter
+	@readonly
+
+	The wrapped `AudioLimiter` instance.
 ]=]
 
+--[=[
+	@prop Routing Routing
+	@within AudioLimiter
+	@readonly
+
+	Wires this component to others, see [Routing].
+]=]
+
+--[=[
+	@prop In AudioLimiter
+	@within AudioLimiter
+	@readonly
+
+	The instance to wire into (same as `Instance`).
+]=]
+
+--[=[
+	@prop Out AudioLimiter
+	@within AudioLimiter
+	@readonly
+
+	The instance to wire from (same as `Instance`).
+]=]
+
+--[=[
+	Creates a new AudioLimiter under `parent`. Usually created through `Orchestra.Transforms.new`.
+
+	@param parent Instance -- Where the `AudioLimiter` instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return AudioLimiter
+]=]
 function AudioLimiter.new(parent: Instance, props: { [string]: any }?)
 	assert(tAudioLimiter(parent, props))
 
@@ -60,8 +98,8 @@ function AudioLimiter.new(parent: Instance, props: { [string]: any }?)
 	-- Create our routing
 	self.Routing = Routing.new(self.Instance)
 
-	-- Attach to Instance
-	self._trove:AttachToInstance(self.Instance)
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	bindLifetime(self._trove, self.Instance, self.Routing)
 
 	self.In = self.Instance
 	self.Out = self.Instance
@@ -73,6 +111,10 @@ function AudioLimiter:__tostring()
 	return "AudioLimiter"
 end
 
+--[=[
+	Destroys the AudioLimiter: its instance, and every wire into or out of it.
+	Destroying the instance directly does the same.
+]=]
 function AudioLimiter:Destroy()
 	self._trove:Destroy()
 end

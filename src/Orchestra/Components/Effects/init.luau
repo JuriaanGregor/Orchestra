@@ -37,10 +37,29 @@ local function CreateEffect(effectType: Enums.EnumItem, parent: Instance, props:
 end
 
 ---------------------------------------------------------------------
+--[=[
+	@class Effects
+	@tag Effects
+
+	Creates effect components: [AudioChorus], [AudioCompressor], [AudioDistortion], [AudioEcho], [AudioEqualizer], [AudioFlanger], [AudioPitchShifter], [AudioReverb] and [AudioTremolo]. Reached through `Orchestra.Effects`.
+
+	```lua
+	Orchestra.Effects.new(Enums.Effect.Reverb, speaker, { Name = "Reverb" })
+	```
+]=]
 local AudioEffect = {}
 AudioEffect.__index = AudioEffect
 
 local tAudioEffect = t.tuple(Types.tAudioEffect, t.Instance, t.optional(t.map(t.string, t.any)))
+--[=[
+	@within Effects
+	Creates a component of type `effectType`.
+
+	@param effectType EnumItem -- One of [Enums.Effect]
+	@param parent Instance -- Where the instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return any -- The component, see the classes listed above
+]=]
 function AudioEffect.new(effectType: Enums.EnumItem, parent: Instance, props: { [string]: any }?): Types.AUEffect
 	assert(tAudioEffect(effectType.Name, parent, props))
 

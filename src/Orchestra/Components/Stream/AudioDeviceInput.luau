@@ -7,6 +7,7 @@ local Trove = Dependencies.Trove
 
 -- Imports > Package
 local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local bindLifetime = require("../../Instances/bindLifetime")
 local Routing = require("../Routing")
 
 -- Types
@@ -42,12 +43,42 @@ AudioDeviceInput.__index = AudioDeviceInput
 	@class AudioDeviceInput
 	@tag Stream
 
-	Represents an audio device input. This is used to capture audio from a specific player device
+	Wraps an `AudioDeviceInput`, which captures a player's microphone.
+
+	Create one with `Orchestra.Stream.new(Enums.Stream.Input, parent, props)`.
+]=]
+
+--[=[
+	@prop Instance AudioDeviceInput
+	@within AudioDeviceInput
+	@readonly
+
+	The wrapped `AudioDeviceInput` instance.
+]=]
+
+--[=[
+	@prop Routing Routing
+	@within AudioDeviceInput
+	@readonly
+
+	Wires this component to others, see [Routing].
+]=]
+
+--[=[
+	@prop Out AudioDeviceInput
+	@within AudioDeviceInput
+	@readonly
+
+	The instance to wire from (same as `Instance`).
 ]=]
 local tAudioDeviceInput = t.tuple(t.Instance, t.optional(t.map(t.string, t.any)))
 
 --[=[
-	Creates a new AudioDeviceInput
+	Creates a new AudioDeviceInput under `parent`. Usually created through `Orchestra.Stream.new`.
+
+	@param parent Instance -- Where the `AudioDeviceInput` instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return AudioDeviceInput
 ]=]
 function AudioDeviceInput.new(parent: Instance, props: { [string]: any }?): Types.AUInput
 	assert(tAudioDeviceInput(parent, props))
@@ -66,8 +97,8 @@ function AudioDeviceInput.new(parent: Instance, props: { [string]: any }?): Type
 	-- Create our routing
 	self.Routing = Routing.new(self.Instance)
 
-	-- Attach to Instance
-	self._trove:AttachToInstance(self.Instance)
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	bindLifetime(self._trove, self.Instance, self.Routing)
 
 	self.Out = self.Instance
 
@@ -76,7 +107,10 @@ end
 
 local tIsAudible = t.tuple(t.instanceIsA("Player"))
 --[=[
-	Returns whether the audio device input is audible for the given player
+	Returns whether this input is heard by `player`: it is ready, active, not muted, and the player passes its `AccessType` / user id access list.
+
+	@param player Player
+	@return boolean
 ]=]
 function AudioDeviceInput:IsAudible(player: Player): boolean
 	assert(tIsAudible(player))
@@ -117,7 +151,7 @@ function AudioDeviceInput:IsAudible(player: Player): boolean
 end
 
 --[=[
-	Mutes the audio device input
+	Mutes the input.
 ]=]
 function AudioDeviceInput:Mute()
 	self.Instance.Muted = true
@@ -128,7 +162,8 @@ function AudioDeviceInput:__tostring()
 end
 
 --[=[
-	Destroys the AudioDeviceInput
+	Destroys the AudioDeviceInput: its instance, and every wire into or out of it.
+	Destroying the instance directly does the same.
 ]=]
 function AudioDeviceInput:Destroy()
 	self._trove:Destroy()

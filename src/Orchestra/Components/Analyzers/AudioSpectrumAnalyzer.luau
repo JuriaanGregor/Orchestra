@@ -10,6 +10,8 @@ local Signals = Dependencies.Signals
 
 -- Imports > Package
 local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local bindLifetime = require("../../Instances/bindLifetime")
+local Routing = require("../Routing")
 
 -- Types
 local Types = require("../../Types")
@@ -51,12 +53,45 @@ local AudioSpectrumAnalyzer = {}
 AudioSpectrumAnalyzer.__index = AudioSpectrumAnalyzer
 
 --[=[
-    @class AudioSpectrumAnalyzer
-    @tag Analyzer
+	@class AudioSpectrumAnalyzer
+	@tag Analyzer
 
-    Represents an Audio Spectrum Analyzer. This is used to analyze audio data in real time.
+	Wraps an `AudioAnalyzer`, which measures the level and spectrum of the audio wired into it. Readings are only available on the client.
+
+	Create one with `Orchestra.Analyzers.new(Enums.Analyzer.Spectrum, parent, props)`.
 ]=]
 
+--[=[
+	@prop Instance AudioAnalyzer
+	@within AudioSpectrumAnalyzer
+	@readonly
+
+	The wrapped `AudioAnalyzer` instance.
+]=]
+
+--[=[
+	@prop Routing Routing
+	@within AudioSpectrumAnalyzer
+	@readonly
+
+	Wires this component to others, see [Routing].
+]=]
+
+--[=[
+	@prop In AudioAnalyzer
+	@within AudioSpectrumAnalyzer
+	@readonly
+
+	The instance to wire into (same as `Instance`).
+]=]
+
+--[=[
+	Creates a new AudioSpectrumAnalyzer under `parent`. Usually created through `Orchestra.Analyzers.new`.
+
+	@param parent Instance -- Where the `AudioAnalyzer` instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return AudioSpectrumAnalyzer
+]=]
 function AudioSpectrumAnalyzer.new(parent: Instance, props: { [string]: any }?): Types.AUAnalyzer
 	assert(tAudioAnalyzer(parent, props))
 
@@ -71,8 +106,11 @@ function AudioSpectrumAnalyzer.new(parent: Instance, props: { [string]: any }?):
 	-- Create our AudioSpectrumAnalyzer Instance
 	self.Instance = CreateAudioAnalyzer(parent, props)
 
-	-- Attach to Instance
-	self._trove:AttachToInstance(self.Instance)
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	-- Create our routing, so wires into the analyzer are removed with it
+	self.Routing = Routing.new(self.Instance)
+
+	bindLifetime(self._trove, self.Instance, self.Routing)
 
 	self.In = self.Instance
 
@@ -80,9 +118,10 @@ function AudioSpectrumAnalyzer.new(parent: Instance, props: { [string]: any }?):
 end
 
 --[=[
-    Returns the current spectrum data. This is an array of 512 numbers representing the spectrum data of the audio.
-]=]
+	Returns the current frequency spectrum. Errors on the server, or while an `AudioDeviceInput` is wired into the analyzer.
 
+	@return { number } -- Magnitude per frequency band
+]=]
 function AudioSpectrumAnalyzer:GetSpectrum(): {}
 	-- Spectrum data is only available on the client, so we need to check if we're on the server or not.
 	if RunService:IsServer() then
@@ -101,9 +140,11 @@ function AudioSpectrumAnalyzer:GetSpectrum(): {}
 end
 
 --[=[
-    Observes the spectrum data of the audio. This returns a signal that fires every frame with the current spectrum data. The second return value is a function that can be called to stop observing the spectrum data.
-]=]
+	Observes the frequency spectrum, updated every frame. Errors on the server, or while an `AudioDeviceInput` is wired into the analyzer.
 
+	@return Getter<{ number }> -- A Signals getter holding the latest spectrum
+	@return () -> () -- Call to stop observing
+]=]
 function AudioSpectrumAnalyzer:ObserveSpectrum()
 	if RunService:IsServer() then
 		error("ObserveSpectrum can only be called on the client.")
@@ -123,9 +164,10 @@ function AudioSpectrumAnalyzer:ObserveSpectrum()
 end
 
 --[=[
-    Returns the current peak level of the audio. This is a number between 0 and 1 representing the peak level of the audio.
-]=]
+	Returns the current peak level. Errors on the server.
 
+	@return number
+]=]
 function AudioSpectrumAnalyzer:GetPeak()
 	if RunService:IsServer() then
 		error("GetPeak can only be called on the client.")
@@ -135,9 +177,11 @@ function AudioSpectrumAnalyzer:GetPeak()
 end
 
 --[=[
-    Observes the peak level of the audio. This returns a signal that fires every frame with the current peak level of the audio. The second return value is a function that can be called to stop observing the peak level.
-]=]
+	Observes the peak level, updated every frame. Errors on the server.
 
+	@return Getter<number> -- A Signals getter holding the latest peak level
+	@return () -> () -- Call to stop observing
+]=]
 function AudioSpectrumAnalyzer:ObservePeak()
 	if RunService:IsServer() then
 		error("ObservePeak can only be called on the client.")
@@ -149,9 +193,10 @@ function AudioSpectrumAnalyzer:ObservePeak()
 end
 
 --[=[
-    Returns the current RMS level of the audio. This is a number between 0 and 1 representing the RMS level of the audio.
-]=]
+	Returns the current RMS (average) level. Errors on the server.
 
+	@return number
+]=]
 function AudioSpectrumAnalyzer:GetRMS()
 	if RunService:IsServer() then
 		error("GetRMS can only be called on the client.")
@@ -161,9 +206,11 @@ function AudioSpectrumAnalyzer:GetRMS()
 end
 
 --[=[
-    Observes the RMS level of the audio. This returns a signal that fires every frame with the current RMS level of the audio. The second return value is a function that can be called to stop observing the RMS level.
-]=]
+	Observes the RMS (average) level, updated every frame. Errors on the server.
 
+	@return Getter<number> -- A Signals getter holding the latest RMS level
+	@return () -> () -- Call to stop observing
+]=]
 function AudioSpectrumAnalyzer:ObserveRMS()
 	if RunService:IsServer() then
 		error("ObserveRMS can only be called on the client.")
@@ -178,6 +225,10 @@ function AudioSpectrumAnalyzer:__tostring()
 	return "AudioSpectrumAnalyzer"
 end
 
+--[=[
+	Destroys the AudioSpectrumAnalyzer: its instance, and every wire into or out of it.
+	Destroying the instance directly does the same.
+]=]
 function AudioSpectrumAnalyzer:Destroy()
 	self._trove:Destroy()
 end

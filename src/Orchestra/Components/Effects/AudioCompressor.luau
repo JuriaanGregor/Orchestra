@@ -10,6 +10,7 @@ local Enums = require("../../Enums")
 
 -- Imports > Package
 local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local bindLifetime = require("../../Instances/bindLifetime")
 local Routing = require("../Routing")
 
 -- Functions
@@ -34,13 +35,56 @@ AudioCompressor.__index = AudioCompressor
 	@class AudioCompressor
 	@tag Effects
 
-	Represents an audio compressor. This is used to adjust the audio compressor properties.
+	Wraps an `AudioCompressor`, which reduces the dynamic range of a sound.
+
+	Besides `Input`, it has a `Sidechain` input pin, so another source can drive the compression:
+
+	```lua
+	kick.Routing:WireTo(compressor.In, "Sidechain")
+	```
+
+	Create one with `Orchestra.Effects.new(Enums.Effect.Compressor, parent, props)`.
 ]=]
 
 --[=[
-	Creates a new AudioCompressor.
+	@prop Instance AudioCompressor
+	@within AudioCompressor
+	@readonly
+
+	The wrapped `AudioCompressor` instance.
 ]=]
 
+--[=[
+	@prop Routing Routing
+	@within AudioCompressor
+	@readonly
+
+	Wires this component to others, see [Routing].
+]=]
+
+--[=[
+	@prop In AudioCompressor
+	@within AudioCompressor
+	@readonly
+
+	The instance to wire into (same as `Instance`).
+]=]
+
+--[=[
+	@prop Out AudioCompressor
+	@within AudioCompressor
+	@readonly
+
+	The instance to wire from (same as `Instance`).
+]=]
+
+--[=[
+	Creates a new AudioCompressor under `parent`. Usually created through `Orchestra.Effects.new`.
+
+	@param parent Instance -- Where the `AudioCompressor` instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return AudioCompressor
+]=]
 function AudioCompressor.new(parent: Instance, props: { [string]: any }?)
 	assert(tAudioCompressor(parent, props))
 
@@ -58,8 +102,8 @@ function AudioCompressor.new(parent: Instance, props: { [string]: any }?)
 	-- Create our routing
 	self.Routing = Routing.new(self.Instance, { Enums.Pin.Input, Enums.Pin.Output, Enums.Pin.Sidechain })
 
-	-- Attach to Instance
-	self._trove:AttachToInstance(self.Instance)
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	bindLifetime(self._trove, self.Instance, self.Routing)
 
 	self.In = self.Instance
 	self.Out = self.Instance
@@ -72,7 +116,8 @@ function AudioCompressor:__tostring()
 end
 
 --[=[
-	Destroys the AudioCompressor.
+	Destroys the AudioCompressor: its instance, and every wire into or out of it.
+	Destroying the instance directly does the same.
 ]=]
 function AudioCompressor:Destroy()
 	self._trove:Destroy()

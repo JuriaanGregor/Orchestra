@@ -7,6 +7,7 @@ local Trove = Dependencies.Trove
 
 -- Imports > Package
 local applyInstanceProps = require("../../Instances/applyInstanceProps")
+local bindLifetime = require("../../Instances/bindLifetime")
 local Routing = require("../Routing")
 
 -- Functions
@@ -32,13 +33,50 @@ AudioEqualizer.__index = AudioEqualizer
 	@class AudioEqualizer
 	@tag Effects
 
-	Represents an audio equalizer. This is used to adjust the audio frequencies.
+	Wraps an `AudioEqualizer`, a three-band (Low / Mid / High) equalizer.
+
+	Create one with `Orchestra.Effects.new(Enums.Effect.Equalizer, parent, props)`.
 ]=]
 
 --[=[
-	Creates a new AudioEqualizer.
+	@prop Instance AudioEqualizer
+	@within AudioEqualizer
+	@readonly
+
+	The wrapped `AudioEqualizer` instance.
 ]=]
 
+--[=[
+	@prop Routing Routing
+	@within AudioEqualizer
+	@readonly
+
+	Wires this component to others, see [Routing].
+]=]
+
+--[=[
+	@prop In AudioEqualizer
+	@within AudioEqualizer
+	@readonly
+
+	The instance to wire into (same as `Instance`).
+]=]
+
+--[=[
+	@prop Out AudioEqualizer
+	@within AudioEqualizer
+	@readonly
+
+	The instance to wire from (same as `Instance`).
+]=]
+
+--[=[
+	Creates a new AudioEqualizer under `parent`. Usually created through `Orchestra.Effects.new`.
+
+	@param parent Instance -- Where the `AudioEqualizer` instance is created
+	@param props { [string]: any }? -- Properties to apply to the instance (any of its Roblox properties, plus `Name`, `Tags` and `Attributes`)
+	@return AudioEqualizer
+]=]
 function AudioEqualizer.new(parent: Instance, props: { [string]: any }?)
 	assert(tAudioEqualizer(parent, props))
 
@@ -56,8 +94,8 @@ function AudioEqualizer.new(parent: Instance, props: { [string]: any }?)
 	-- Create our routing
 	self.Routing = Routing.new(self.Instance)
 
-	-- Attach to Instance
-	self._trove:AttachToInstance(self.Instance)
+	-- Destroying the instance cleans us up, and Destroy() removes the instance and its wires
+	bindLifetime(self._trove, self.Instance, self.Routing)
 
 	self.In = self.Instance
 	self.Out = self.Instance
@@ -71,30 +109,29 @@ end
 
 local tSetGain = t.tuple(t.union(t.literal("Low"), t.literal("Mid"), t.literal("High")), t.number)
 --[=[
-    Sets the gain for a specific band.
+	Sets the gain of one band.
 
-    @param bandIndex "Low" | "Mid" | "High" -- The band to set the gain for.
-    @param gain number -- The gain value to set.
+	@param band "Low" | "Mid" | "High" -- The band to change
+	@param gain number -- The gain in decibels
 ]=]
+function AudioEqualizer:SetGain(band: "Low" | "Mid" | "High", gain: number)
+	assert(tSetGain(band, gain))
 
-function AudioEqualizer:SetGain(bandIndex: "Low" | "Mid" | "High", gain: number)
-	assert(tSetGain(bandIndex, gain))
-
-	if bandIndex == "Low" then
+	if band == "Low" then
 		self.Instance.LowGain = gain
-	elseif bandIndex == "Mid" then
+	elseif band == "Mid" then
 		self.Instance.MidGain = gain
-	elseif bandIndex == "High" then
+	elseif band == "High" then
 		self.Instance.HighGain = gain
 	end
 end
 
 local tSetRange = t.tuple(t.numberConstrained(200, 20000), t.numberConstrained(200, 20000))
 --[=[
-    Sets the frequency range for the mid band.
+	Sets the frequency range of the Mid band. Frequencies below it fall in the Low band, above it in the High band.
 
-    @param minFrequency number -- The minimum frequency for the mid band.
-    @param maxFrequency number -- The maximum frequency for the mid band.
+	@param minFrequency number -- Lower edge of the Mid band in Hz (200 - 20000)
+	@param maxFrequency number -- Upper edge of the Mid band in Hz (200 - 20000), at least `minFrequency`
 ]=]
 function AudioEqualizer:SetRange(minFrequency: number, maxFrequency: number)
 	assert(tSetRange(minFrequency, maxFrequency))
@@ -107,7 +144,8 @@ function AudioEqualizer:SetRange(minFrequency: number, maxFrequency: number)
 end
 
 --[=[
-	Destroys the AudioEqualizer.
+	Destroys the AudioEqualizer: its instance, and every wire into or out of it.
+	Destroying the instance directly does the same.
 ]=]
 function AudioEqualizer:Destroy()
 	self._trove:Destroy()
