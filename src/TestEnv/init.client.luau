@@ -1,7 +1,10 @@
 --!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+-- Wait for the packages to replicate: the modules below index them directly
 local Orchestra = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Orchestra")
+ReplicatedStorage:WaitForChild("DevPackages"):WaitForChild("Fusion")
+
 local AudioEngine = require(Orchestra)
 
 local DemoPresets = require("@self/DemoPresets")

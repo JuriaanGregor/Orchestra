@@ -129,7 +129,7 @@ wally-package-types --sourcemap sourcemap.json Packages/   # re-export package t
 rojo serve test.project.json      # sync into Studio
 ```
 
-`test.project.json` mounts Orchestra at `ReplicatedStorage.Packages.Orchestra`, next to its dependencies (the layout Wally uses). It also adds a client script (`src/TestEnv`) that registers demo presets, starts the engine, builds a demo scene, and opens a debug panel: switch the platform, toggle Headphones, push and pop the demo snapshots, and watch the live volumes and insert properties.
+`test.project.json` mounts Orchestra at `ReplicatedStorage.Packages.Orchestra`, next to its dependencies (the layout Wally uses). It also adds a client script (`src/TestEnv`) that registers demo presets, starts the engine, builds a demo scene, and opens a debug panel: switch the platform, toggle Headphones, push and pop the demo snapshots, and watch the live volumes and insert properties. The panel is built with [Fusion](https://elttob.uk/Fusion/) 0.3, a dev dependency (`src/TestEnv/DebugPanel`).
 
 Tests are Jest specs (`*.spec.luau`) next to the code. `scripts/test.lua` runs them in Roblox; in Studio, run it from the command bar while `rojo serve` is syncing. `test.project.json` mounts a `JestGlobals` stub (`scripts/JestGlobals.luau`) in `DevPackages`: Jest intercepts requires of that name and hands back `describe`, `it` and `expect`.
 
