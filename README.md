@@ -1,6 +1,10 @@
 # Orchestra
 
-**Orchestra** is a Roblox audio framework written in Luau. It wraps Roblox's Audio API instances (`AudioPlayer`, `AudioFader`, `AudioEmitter`, `Wire`, ...) in components you wire together, like a DAW or a mixing desk. On the client it builds a mixer for you: one bus per sound category (`SFX`, `Music`, `UI`, ...), feeding into a Master fader.
+**Orchestra** is a Roblox audio framework written in Luau. It wraps Roblox's Audio API instances (`AudioPlayer`, `AudioFader`, `AudioEmitter`, `Wire`, ...) in components you wire together, like a DAW or a mixing desk. On the client it builds a mixer for you: one bus per sound category (`SFX`, `Music`, `UI`, ...), feeding into a Master fader. Every bus, and the Main layer before Master, has an insert chain for effects:
+
+```
+Listener:<bus> -> Inserts:<bus> -> MixBus:<bus> -> Trim:<bus> -> Inserts:Main -> Master -> MainOut
+```
 
 > **Status:** early development (`v0.0.2`). The API may still change.
 
@@ -38,6 +42,17 @@ music.Fader:FadeIn(2)
 ```
 
 The emitter's `AudioInteractionGroup` picks the mix bus it plays through.
+
+Add effects to a bus, or to the whole mix, through its insert chain. Player volume settings go on the trim faders:
+
+```lua
+local chain = Orchestra.Inserts.Music
+chain:Add(Orchestra.Effects.new(Enums.Effect.Equalizer, chain.Instance, { Name = "Tone" }))
+
+Orchestra.MainInserts:Add(Orchestra.Transforms.new(Enums.Transform.Limiter, Orchestra.MainInserts.Instance))
+
+Orchestra:SetPlayerVolume("Music", 0.5)
+```
 
 > **Set `SoundService.DefaultListenerLocation` to `None` in your place.** Otherwise Roblox's default listener wires itself into Orchestra's output, and emitters without an `AudioInteractionGroup` skip the mixer. Game scripts can't set this property, so set it in Studio or in your Rojo project (`test.project.json` does this).
 

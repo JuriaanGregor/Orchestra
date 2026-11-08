@@ -43,11 +43,15 @@ end
 	the client to build the mixer:
 
 	```
-	Listener:<bus> -> MixBus:<bus> -> Master -> MainOut
+	Listener:<bus> -> Inserts:<bus> -> MixBus:<bus> -> Trim:<bus> -> Inserts:Main -> Master -> MainOut
 	```
 
 	Each bus in [Config.MIX_BUSES] gets an `AudioListener` on the camera, filtered by `AudioInteractionGroup`. Give an
 	emitter a bus name as its `AudioInteractionGroup` to send it to that bus.
+
+	Every bus has an [InsertChain] before its Fader ([Orchestra.Inserts]) and a trim Fader after it for the player's
+	volume ([Orchestra.Trims]). The buses sum into the Main layer's [InsertChain] ([Orchestra.MainInserts]), which
+	feeds Master. Empty chains pass audio through unchanged.
 
 	:::caution
 	Set `SoundService.DefaultListenerLocation` to `None` in your place. Otherwise Roblox's default listener wires itself
@@ -96,11 +100,45 @@ end
 ]=]
 
 --[=[
+	@prop MainInserts InsertChain
+	@within Orchestra
+	@readonly
+
+	The Main layer's [InsertChain]: every bus sums into it, and it feeds Master. Set by [Orchestra:Start].
+]=]
+
+--[=[
 	@prop Mixes { [string]: Fader }
 	@within Orchestra
 	@readonly
 
 	The mix bus Faders by bus name, see [Orchestra:AddMix].
+]=]
+
+--[=[
+	@prop Inserts { [string]: InsertChain }
+	@within Orchestra
+	@readonly
+
+	The [InsertChain] before each mix bus Fader, by bus name. Its `In` is the bus's input: wire into
+	`Orchestra.Inserts[busName].In` to send audio to a bus.
+]=]
+
+--[=[
+	@prop Trims { [string]: Fader }
+	@within Orchestra
+	@readonly
+
+	The player trim [Fader] after each mix bus Fader, by bus name. Meant for the player's volume settings, see
+	[Orchestra:SetPlayerVolume].
+]=]
+
+--[=[
+	@prop InsertChain InsertChain
+	@within Orchestra
+	@readonly
+
+	The [InsertChain] class, for `Orchestra.InsertChain.new`.
 ]=]
 
 --[=[
@@ -187,6 +225,8 @@ function Orchestra.new()
 
 	-- Mix buses by name, filled by :AddMix
 	self.Mixes = {}
+	self.Inserts = {}
+	self.Trims = {}
 
 	-- Expose our Enums, these are needed to create components through the factories
 	self.Enums = Enums
@@ -205,7 +245,8 @@ end
 
 --[=[
 	@within Orchestra
-	Builds the mixer: `MainOut`, the Master Fader, and a mix bus + listener for every bus in [Config.MIX_BUSES].
+	Builds the mixer: `MainOut`, the Master Fader, the Main layer's [InsertChain], and a mix bus + listener for every
+	bus in [Config.MIX_BUSES].
 	Errors on the server; warns and does nothing if already started.
 
 	@client
@@ -250,6 +291,12 @@ function Orchestra:Start()
 	-- Wire out Master to MainOut
 	self.Master.Routing:WireTo(self.MainOut.In)
 
+	-- The Main layer's inserts: every bus sums into them, and they feed Master
+	self.MainInserts = trove:Construct(self.InsertChain, Mixes, {
+		Name = "Inserts:Main",
+	})
+	self.MainInserts.Routing:WireTo(self.Master.In)
+
 	-- Add default mix buses
 	for _, bus in Config.MIX_BUSES:GetEnumItems() do
 		self:AddMix(bus.Name)
@@ -261,14 +308,20 @@ local tAddMix = t.string
 
 --[=[
 	@within Orchestra
-	Adds a mix bus: a [Fader] named `MixBus:<busName>` in `SoundService.Mixes`, wired into Master.
-	Warns and returns nothing if the bus already exists. Call [Orchestra:AddListener] to give it a listener.
+	Adds a mix bus in `SoundService.Mixes`: an [InsertChain] `Inserts:<busName>`, wired into the bus [Fader]
+	`MixBus:<busName>`, wired into the player trim Fader `Trim:<busName>`, wired into the Main layer's inserts.
+	Errors before [Orchestra:Start]; warns and returns nothing if the bus already exists. Call [Orchestra:AddListener]
+	to give it a listener.
 
 	@param busName string
-	@return Fader?
+	@return Fader? -- The bus Fader
 ]=]
 function Orchestra:AddMix(busName: string)
 	assert(tAddMix(busName))
+
+	if not self.Started then
+		error("Orchestra:AddMix - Call Orchestra:Start first")
+	end
 
 	-- Check if mix bus already exists
 	if self.Mixes[busName] then
@@ -276,25 +329,59 @@ function Orchestra:AddMix(busName: string)
 		return
 	end
 
-	-- Create a new mix bus
-	local mixBus = self._trove:Construct(self.Fader, SoundService.Mixes, {
+	local trove: Dependencies.Trove = self._trove
+
+	-- Inserts -> bus Fader -> player trim -> Main inserts
+	local inserts = trove:Construct(self.InsertChain, SoundService.Mixes, {
+		Name = string.format("Inserts:%s", busName),
+	})
+
+	local mixBus = trove:Construct(self.Fader, SoundService.Mixes, {
 		Name = string.format("MixBus:%s", busName),
 	})
 
-	self.Mixes[busName] = mixBus
+	local trim = trove:Construct(self.Fader, SoundService.Mixes, {
+		Name = string.format("Trim:%s", busName),
+	})
 
-	-- Wire our mix bus to Master
-	mixBus.Routing:WireTo(self.Master.In)
+	inserts.Routing:WireTo(mixBus.In)
+	mixBus.Routing:WireTo(trim.In)
+	trim.Routing:WireTo(self.MainInserts.In)
+
+	self.Inserts[busName] = inserts
+	self.Mixes[busName] = mixBus
+	self.Trims[busName] = trim
 
 	-- Return our mix bus
 	return mixBus
+end
+
+local tSetPlayerVolume = t.tuple(t.string, t.numberConstrained(0, 3))
+
+--[=[
+	@within Orchestra
+	Sets a bus's player trim volume, for the player's volume settings. Presets never change it.
+	Errors if the bus doesn't exist.
+
+	@param busName string -- An existing bus, see [Orchestra:AddMix]
+	@param volume number -- 0 (silent) to 3, where 1 is unchanged
+]=]
+function Orchestra:SetPlayerVolume(busName: string, volume: number)
+	assert(tSetPlayerVolume(busName, volume))
+
+	local trim = self.Trims[busName]
+	if not trim then
+		error("Orchestra:SetPlayerVolume - Mix bus does not exist: " .. busName)
+	end
+
+	trim:Set(volume)
 end
 
 local tAddListener = t.string
 --[=[
 	@within Orchestra
 	Adds an `AudioListener` on the camera for an existing mix bus, hearing emitters whose `AudioInteractionGroup` is
-	`busName`, and wires it into that bus.
+	`busName`, and wires it into that bus's inserts.
 
 	@param busName string -- An existing bus, see [Orchestra:AddMix]
 	@return AudioListener
@@ -318,7 +405,7 @@ function Orchestra:AddListener(busName: string)
 	})
 
 	-- Wire it to the appropriate mix bus
-	listener.Routing:WireTo(self.Mixes[busName].In)
+	listener.Routing:WireTo(self.Inserts[busName].In)
 
 	return listener
 end
