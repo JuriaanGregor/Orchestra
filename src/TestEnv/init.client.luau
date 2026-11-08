@@ -7,12 +7,12 @@ ReplicatedStorage:WaitForChild("DevPackages"):WaitForChild("Fusion")
 
 local AudioEngine = require(Orchestra)
 
-local DemoPresets = require("@self/DemoPresets")
 local DemoScene = require("@self/DemoScene")
 local DebugPanel = require("@self/DebugPanel")
 
--- Register the demo presets, start the engine (it applies the platform's preset), then build the scene and the panel
-DemoPresets(AudioEngine)
+-- Register the demo presets (one ModuleScript each), start the engine (it applies the platform's preset), then build
+-- the scene and the panel
+AudioEngine.Presets:RegisterFolder(script:WaitForChild("DemoPresets"))
 AudioEngine:Start()
 DemoScene(AudioEngine)
 DebugPanel(AudioEngine)

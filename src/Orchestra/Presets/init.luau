@@ -12,6 +12,7 @@ local Trove = Dependencies.Trove
 -- Import > Package
 local resolve = require("@self/resolve")
 local layers = require("@self/layers")
+local diff = require("@self/diff")
 local detectPlatform = require("./Utility/detectPlatform")
 local Enums = require("./Enums")
 
@@ -370,12 +371,101 @@ end
 	@param definition { Name: string, Extends: string?, Transition: { Time: number?, EasingStyle: Enum.EasingStyle?, EasingDirection: Enum.EasingDirection? }?, Buses: { [string]: { Volume: number?, Inserts: { InsertEntry }? } }?, Main: { Volume: number?, Inserts: { InsertEntry }? }? }
 ]=]
 function Presets:Register(definition: Definition)
+	self:_registerAll({ definition }, "Presets:Register")
+end
+
+--[=[
+	@within Presets
+	Registers every preset in a folder: each ModuleScript returns one preset definition. A preset without a `Name` is
+	named after its ModuleScript. Folders inside `folder` are searched too; ModuleScripts inside a ModuleScript are
+	left alone, so a preset module can keep helpers as children.
+
+	```
+	ReplicatedStorage
+	└─ Presets
+	   ├─ Base          -- return { Buses = { ... } }
+	   ├─ Mobile        -- return { Extends = "Base", ... }
+	   └─ Snapshots
+	      └─ PauseMenu
+	```
+
+	```lua
+	Orchestra.Presets:RegisterFolder(ReplicatedStorage.Presets)
+	Orchestra:Start()
+	```
+
+	Every preset is checked before any is registered, and after [Orchestra:Start] the mix is applied once, after all
+	of them are in. If one fails (a module errors or returns something else than a table, a definition is malformed, two
+	modules use the same name, or the new mix doesn't resolve), none are kept and it errors.
+
+	@param folder Instance
+	@return { string } -- The names registered, in the order the modules were found
+]=]
+function Presets:RegisterFolder(folder: Instance): { string }
+	assert(t.Instance(folder))
+
+	local modules: { ModuleScript } = {}
+	local function collect(parent: Instance)
+		local children = parent:GetChildren()
+		table.sort(children, function(a, b)
+			return a.Name < b.Name
+		end)
+
+		for _, child in children do
+			if child:IsA("ModuleScript") then
+				table.insert(modules, child)
+			elseif child:IsA("Folder") then
+				collect(child)
+			end
+		end
+	end
+	collect(folder)
+
+	local definitions: { Definition } = {}
+	for _, module in modules do
+		local loaded, result = pcall(require :: any, module)
+		if not loaded then
+			error(
+				string.format("Presets:RegisterFolder - %s failed to load: %s", module:GetFullName(), tostring(result)),
+				2
+			)
+		end
+
+		if typeof(result) ~= "table" then
+			error(
+				string.format(
+					"Presets:RegisterFolder - %s must return a preset table, got a %s",
+					module:GetFullName(),
+					typeof(result)
+				),
+				2
+			)
+		end
+
+		local definition = table.clone(result)
+		if definition.Name == nil then
+			definition.Name = module.Name
+		end
+		table.insert(definitions, definition)
+	end
+
+	self:_registerAll(definitions, "Presets:RegisterFolder")
+
+	local names = {}
+	for _, definition in definitions do
+		table.insert(names, definition.Name)
+	end
+	return names
+end
+
+-- Checks a definition: its shape (t), unique insert Ids, and the props of inserts that name their Effect
+local function validateDefinition(definition: any): string?
 	local ok, message = tDefinition(definition)
 	if not ok then
 		local name = if typeof(definition) == "table" and typeof(definition.Name) == "string"
 			then definition.Name
 			else "?"
-		error(string.format("Presets:Register - Invalid preset '%s': %s", name, tostring(message)), 2)
+		return string.format("Invalid preset '%s': %s", name, tostring(message))
 	end
 
 	local checked, checkError = pcall(function()
@@ -391,28 +481,50 @@ function Presets:Register(definition: Definition)
 			checkEntries(definition.Main.Inserts, definition.Name, "Main")
 		end
 	end)
-	if not checked then
-		error("Presets:Register - " .. tostring(checkError), 2)
+
+	return if checked then nil else tostring(checkError)
+end
+
+-- Registers definitions all or nothing: each is checked first, then all are stored, and after Start the mix is
+-- applied once. If that fails, every previous definition is put back.
+function Presets:_registerAll(definitions: { Definition }, context: string)
+	local seen: { [string]: boolean } = {}
+	for _, definition in definitions do
+		local problem = validateDefinition(definition)
+		if problem then
+			error(string.format("%s - %s", context, problem), 3)
+		end
+
+		if seen[definition.Name] then
+			error(string.format("%s - Preset '%s' is defined twice", context, definition.Name), 3)
+		end
+		seen[definition.Name] = true
 	end
 
-	local name = definition.Name
-	local previous = self._registry[name]
-	self._registry[name] = table.freeze(copyDefinition(definition))
+	-- What each name held before (nil: it wasn't registered), so a restore can put it back
+	local registry: { [string]: Definition? } = self._registry
+	local previous: { { Name: string, Definition: Definition? } } = {}
+	for _, definition in definitions do
+		table.insert(previous, { Name = definition.Name, Definition = registry[definition.Name] })
+		registry[definition.Name] = table.freeze(copyDefinition(definition))
+	end
 
 	if self._started then
 		self:_applyOrRestore(function()
-			self._registry[name] = previous
-		end, "Presets:Register")
+			for _, entry in previous do
+				registry[entry.Name] = entry.Definition
+			end
+		end, context, nil, 4)
 	end
 end
 
 -- Applies the mix with tweens. If the new mix doesn't resolve, `restore` undoes the change that caused it and the
 -- error is raised: the live mix is untouched, since every check runs before anything changes
-function Presets:_applyOrRestore(restore: () -> (), context: string, transition: resolve.Transition?)
+function Presets:_applyOrRestore(restore: () -> (), context: string, transition: resolve.Transition?, level: number?)
 	local ok, result = pcall(self._apply, self, false, transition)
 	if not ok then
 		restore()
-		error(string.format("%s - %s", context, tostring(result)), 3)
+		error(string.format("%s - %s", context, tostring(result)), level or 3)
 	end
 
 	return result
@@ -810,32 +922,18 @@ function Presets:_setProps(state: ChainState, live: LiveInsert, props: { [string
 	local instance = live.Component.Instance :: any
 	local className = instance.ClassName
 
-	local targets = {}
-	for key in live.Props do
+	local plan = diff.props(live.Props, props, function(key)
+		return instance[key]
+	end, function(key)
 		local _, default = defaultOf(className, key)
-		targets[key] = default
-	end
-	for key, value in props do
-		targets[key] = value
-	end
+		return default
+	end, tweenInfo ~= nil)
 	live.Props = table.clone(props)
 
-	local tweened = {}
-	local later = {}
-	for key, value in targets do
-		if instance[key] == value then
-			continue
-		end
-
-		if tweenInfo and typeof(value) == "number" then
-			tweened[key] = value
-		else
-			later[key] = value
-		end
-	end
+	local tweened = plan.Tween
 
 	local function setLater()
-		for key, value in later do
+		for key, value in plan.Set do
 			instance[key] = value
 		end
 	end
@@ -896,18 +994,19 @@ function Presets:_applyInserts(key: string, chain: any, inserts: { ResolvedInser
 	local chainState = state :: ChainState
 	chainState.Trove:Clean()
 
-	local sameShape = #inserts == #chainState.Inserts
-	if sameShape then
-		for index, insert in inserts do
-			local live = chainState.Inserts[index]
-			if live.Id ~= insert.Id or live.Effect ~= insert.Effect or not isAlive(live) then
-				sameShape = false
-				break
-			end
+	local function plan()
+		local live = {}
+		for _, current in chainState.Inserts do
+			table.insert(live, { Id = current.Id, Effect = current.Effect, Alive = isAlive(current) })
 		end
+		local targets = {}
+		for _, insert in inserts do
+			table.insert(targets, { Id = insert.Id, Effect = insert.Effect })
+		end
+		return diff.chain(live, targets)
 	end
 
-	if sameShape then
+	if plan().SameShape then
 		local promises = {}
 
 		for index, insert in inserts do
@@ -929,7 +1028,10 @@ function Presets:_applyInserts(key: string, chain: any, inserts: { ResolvedInser
 		return Promise.all(promises)
 	end
 
+	-- Planned again when it runs: after a dip, the live state may have changed
 	local function rebuild()
+		local chainPlan = plan()
+
 		local previous: { [string]: LiveInsert } = {}
 		local owned: { [any]: boolean } = {}
 		for _, live in chainState.Inserts do
@@ -940,23 +1042,20 @@ function Presets:_applyInserts(key: string, chain: any, inserts: { ResolvedInser
 		local nextInserts: { LiveInsert } = {}
 		local components = {}
 
-		for _, insert in inserts do
-			local live = previous[insert.Id]
-			if live and live.Effect == insert.Effect and isAlive(live) then
-				previous[insert.Id] = nil
-			else
-				live = {
+		for index, step in chainPlan.Steps do
+			local insert = inserts[index]
+			local live: LiveInsert = if step.Reuse
+				then previous[step.Id]
+				else {
 					Id = insert.Id,
 					Effect = insert.Effect,
 					Component = self:_createInsert(insert, chain),
 					Props = {},
 				}
-			end
 
-			local liveInsert = live :: LiveInsert
-			self:_setProps(chainState, liveInsert, insert.Props, nil)
-			table.insert(nextInserts, liveInsert)
-			table.insert(components, liveInsert.Component)
+			self:_setProps(chainState, live, insert.Props, nil)
+			table.insert(nextInserts, live)
+			table.insert(components, live.Component)
 		end
 
 		-- Inserts added by hand stay after the preset's
@@ -966,16 +1065,9 @@ function Presets:_applyInserts(key: string, chain: any, inserts: { ResolvedInser
 			end
 		end
 
-		local removed = chain:SetInserts(components)
-		for _, insert in removed do
+		-- Discarded inserts still in the chain come back from SetInserts; ones destroyed elsewhere are already gone
+		for _, insert in chain:SetInserts(components) do
 			insert:Destroy()
-		end
-
-		-- Ones that were destroyed elsewhere are no longer in the chain, so SetInserts didn't return them
-		for _, live in previous do
-			if isAlive(live) then
-				live.Component:Destroy()
-			end
 		end
 
 		chainState.Inserts = nextInserts

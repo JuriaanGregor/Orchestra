@@ -244,7 +244,7 @@ end
 ]=]
 local Orchestra = {}
 Orchestra.__index = Orchestra
-Orchestra.VERSION = "0.0.2"
+Orchestra.VERSION = "0.1.0"
 
 function Orchestra.new()
 	local self = {}

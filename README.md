@@ -6,7 +6,7 @@
 Listener:<bus> -> Inserts:<bus> -> MixBus:<bus> -> Trim:<bus> -> Inserts:Main -> Master -> MainOut
 ```
 
-> **Status:** early development (`v0.0.2`). The API may still change.
+> **Status:** early development (`v0.1.0`). The API may still change.
 
 ## Installation
 
@@ -14,7 +14,7 @@ Add Orchestra to your `wally.toml` and run `wally install`:
 
 ```toml
 [dependencies]
-Orchestra = "juriaan/orchestra@0.0.2"
+Orchestra = "juriaan/orchestra@0.1.0"
 ```
 
 ## Getting started
@@ -103,6 +103,15 @@ Orchestra.Presets:Register({ Name = "PauseMenu", Transition = { Time = 0.2 }, Bu
 local paused = Orchestra.Presets:Push("PauseMenu", { Priority = 10 })
 paused:Pop()
 ```
+
+To keep one preset per file, put a ModuleScript per preset in a folder and register them together. Each module returns a definition; one without a `Name` is named after its module:
+
+```lua
+Orchestra.Presets:RegisterFolder(ReplicatedStorage.Presets) -- Base, Mobile, Headphones, ...
+Orchestra:Start()
+```
+
+Upgrading from 0.0.2? See [CHANGELOG.md](CHANGELOG.md) for the breaking changes.
 
 > **Set `SoundService.DefaultListenerLocation` to `None` in your place.** Otherwise Roblox's default listener wires itself into Orchestra's output, and emitters without an `AudioInteractionGroup` skip the mixer. Game scripts can't set this property, so set it in Studio or in your Rojo project (`test.project.json` does this).
 
